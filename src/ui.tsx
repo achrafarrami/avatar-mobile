@@ -18,6 +18,8 @@ const P: Record<string, ReactNode> = {
   check: <path d="M4 12l5 5L20 6" />,
   plus: <path d="M12 5v14M5 12h14" />,
   history: <><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M12 7v5l3 2" /></>,
+  send: <path d="M4 12h14M13 6l6 6-6 6" />,
+  image: <><rect x="3" y="4" width="18" height="16" rx="3" /><circle cx="9" cy="10" r="1.6" /><path d="M4 18l5-5 4 4 3-3 4 4" /></>,
 };
 export function Icon({ name, size = 24 }: { name: string; size?: number }) {
   return (

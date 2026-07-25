@@ -43,21 +43,36 @@ From Home: Customize · Wardrobe · Animations · Chat · Personality · Setting
 Navigation is a small screen stack (`src/nav.tsx`) with directional page
 transitions (framer-motion `AnimatePresence`).
 
+## Voice conversation
+
+Real, powered by the backend (the OpenAI key stays server-side in
+`avatar-backend`; the app never sees it). Backend routes: `POST /chat`
+(gpt-4o-mini), `/tts` (returns MP3), `/stt` (Whisper). Flow: hold-to-talk →
+record mic → `/stt` → `/chat` → play `/tts` while the avatar lip-syncs
+(`signals.speaking` drives a mouth morph). The Chat screen also takes typed
+input.
+
 ## Status
 
-Built & interactive: **Splash, Onboarding, Home (live 3D avatar + voice states),
-Wardrobe (real catalog from the API), Settings (theme + rows)**.
+Built & interactive: **Splash, Onboarding, Creation (selfie → `/analyze` →
+identity morphs → home), Home (full-body live avatar + real voice), Chat (OpenAI
+text + hold-to-talk), Wardrobe (real catalog from the API), Settings**.
 
-Designed as on-brand placeholders (reachable, styled, ready to flesh out):
-**Customize, Animations, Chat, Personality**.
+On-brand placeholders (reachable, styled): **Customize, Animations, Personality**.
 
 ### ponytail notes (deliberate ceilings)
 - Mobile-first **PWA**, not React Native — reuses the backend's GLB + Three.js
   pipeline. Manifest only, no service worker yet.
-- Avatar idle is **procedural** (breathe/sway); the backend serves static bases,
-  not the 103-clip animated GLB. Wire `useAnimations` when it exposes one.
-- Hold-to-Talk runs a **mocked** listen→think→speak timeline; swap for a real
-  `/chat` stream + lip-sync.
+- One `<Canvas>` at a time (router `mode="wait"`) — two live WebGL contexts blow
+  the browser limit ("Context Lost").
+- Lip-sync is a **cheap** mouth-morph oscillation while audio plays, not real
+  visemes. Idle is procedural (backend serves static bases, not the 103-clip
+  animated GLB).
+- Hold-to-Talk needs mic permission (real device / https). Typed chat works
+  anywhere.
+- Creation applies identity morphs to a `--keep-identity` base (real "looks like
+  me"); a fully custom generated GLB still needs the Blender pipeline as a
+  service.
 - Wardrobe is browse/select; **live 3D try-on** reuses the same items next.
 - Avatar GLBs are 50–75 MB (dev builds) — fine on localhost, add Draco/meshopt
   compression before shipping over the network.

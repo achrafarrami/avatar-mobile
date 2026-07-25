@@ -20,7 +20,7 @@ export default function Onboarding() {
   return (
     <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", paddingTop: "calc(var(--sat) + 16px)", paddingBottom: "calc(var(--sab) + 20px)" }}>
       <div style={{ display: "flex", justifyContent: "flex-end", padding: "0 20px", height: 32 }}>
-        {!last && <button className="muted" style={{ background: "none", border: 0, fontSize: 15 }} onClick={() => reset("home")}>Skip</button>}
+        {!last && <button className="muted" style={{ background: "none", border: 0, fontSize: 15 }} onClick={() => reset("creation")}>Skip</button>}
       </div>
 
       <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
@@ -52,7 +52,7 @@ export default function Onboarding() {
         <div className="dots">
           {PAGES.map((_, n) => <div key={n} className={`dot ${n === i ? "on" : ""}`} onClick={() => go(n)} />)}
         </div>
-        <button className="btn btn-primary btn-block" onClick={() => (last ? reset("home") : go(i + 1))}>
+        <button className="btn btn-primary btn-block" onClick={() => (last ? reset("creation") : go(i + 1))}>
           {last ? "Create My Avatar" : "Continue"}
         </button>
       </div>

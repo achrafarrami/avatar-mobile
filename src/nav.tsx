@@ -6,6 +6,7 @@ import { createContext, useContext, useState, ReactNode } from "react";
 export type Screen =
   | "splash"
   | "onboarding"
+  | "creation"
   | "home"
   | "wardrobe"
   | "customize"
