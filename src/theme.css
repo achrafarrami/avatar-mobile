@@ -1,0 +1,170 @@
+/* ============================================================================
+   Aura design system — tokens + base component styles.
+   Dark is the default; light via [data-theme="light"] or prefers-color-scheme.
+   ========================================================================== */
+:root {
+  /* palette (dark) */
+  --bg: #08080d;
+  --bg-2: #0e0e17;
+  --surface: rgba(255, 255, 255, 0.055);
+  --surface-2: rgba(255, 255, 255, 0.09);
+  --surface-solid: #14141f;
+  --border: rgba(255, 255, 255, 0.1);
+  --text: #f4f4fb;
+  --muted: #9a9ab0;
+  --faint: #62627a;
+
+  /* brand accent — indigo → violet → pink */
+  --a1: #6d6bff;
+  --a2: #a25bff;
+  --a3: #ff5bb0;
+  --accent: var(--a2);
+  --grad: linear-gradient(135deg, var(--a1) 0%, var(--a2) 52%, var(--a3) 100%);
+  --grad-soft: linear-gradient(135deg, rgba(109,107,255,0.22), rgba(255,91,176,0.22));
+  --glow: 0 0 60px -12px rgba(140, 100, 255, 0.55);
+
+  /* type — native system stack (SF Pro / Segoe), no web-font download */
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI",
+    Roboto, Inter, system-ui, sans-serif;
+  --fs-display: 34px;
+  --fs-h1: 27px;
+  --fs-h2: 21px;
+  --fs-body: 16px;
+  --fs-sm: 14px;
+  --fs-xs: 12px;
+
+  /* spacing (4-pt scale) */
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px;
+  --s6: 32px; --s7: 48px; --s8: 64px;
+
+  /* radius */
+  --r-sm: 12px; --r-md: 18px; --r-lg: 26px; --r-xl: 34px; --r-pill: 999px;
+
+  /* elevation */
+  --sh-1: 0 2px 10px rgba(0, 0, 0, 0.25);
+  --sh-2: 0 10px 30px -8px rgba(0, 0, 0, 0.45);
+  --sh-3: 0 24px 60px -16px rgba(0, 0, 0, 0.6);
+
+  /* motion */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur: 0.4s;
+
+  /* safe-area insets (notch / home indicator) */
+  --sat: env(safe-area-inset-top);
+  --sab: env(safe-area-inset-bottom);
+}
+
+:root[data-theme="light"] {
+  --bg: #f5f5fb;
+  --bg-2: #eef0f8;
+  --surface: rgba(20, 20, 40, 0.045);
+  --surface-2: rgba(20, 20, 40, 0.08);
+  --surface-solid: #ffffff;
+  --border: rgba(20, 20, 40, 0.1);
+  --text: #16162a;
+  --muted: #5c5c72;
+  --faint: #9494a8;
+  --glow: 0 0 60px -14px rgba(140, 100, 255, 0.4);
+  --sh-2: 0 10px 30px -10px rgba(60, 40, 120, 0.18);
+  --sh-3: 0 24px 60px -18px rgba(60, 40, 120, 0.22);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f5f5fb; --bg-2: #eef0f8;
+    --surface: rgba(20,20,40,0.045); --surface-2: rgba(20,20,40,0.08);
+    --surface-solid: #fff; --border: rgba(20,20,40,0.1);
+    --text: #16162a; --muted: #5c5c72; --faint: #9494a8;
+    --sh-2: 0 10px 30px -10px rgba(60,40,120,0.18);
+    --sh-3: 0 24px 60px -18px rgba(60,40,120,0.22);
+  }
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body, #root { height: 100%; margin: 0; }
+body {
+  font-family: var(--font);
+  font-size: var(--fs-body);
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+#root {
+  /* phone frame on desktop; full-bleed on real phones */
+  max-width: 480px;
+  margin: 0 auto;
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 80% at 50% -10%, rgba(109,107,255,0.16), transparent 60%),
+    radial-gradient(90% 60% at 90% 110%, rgba(255,91,176,0.12), transparent 60%),
+    var(--bg);
+}
+h1, h2, h3, p { margin: 0; }
+button { font-family: inherit; color: inherit; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--a1); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}
+
+/* ---- type helpers ---------------------------------------------------------*/
+.display { font-size: var(--fs-display); font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
+.h1 { font-size: var(--fs-h1); font-weight: 700; letter-spacing: -0.02em; }
+.h2 { font-size: var(--fs-h2); font-weight: 650; letter-spacing: -0.01em; }
+.muted { color: var(--muted); }
+.faint { color: var(--faint); }
+.grad-text {
+  background: var(--grad); -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* ---- surfaces -------------------------------------------------------------*/
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  backdrop-filter: blur(20px) saturate(1.3);
+  -webkit-backdrop-filter: blur(20px) saturate(1.3);
+  box-shadow: var(--sh-2);
+}
+.glass {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+}
+
+/* ---- buttons --------------------------------------------------------------*/
+.btn {
+  border: 0; border-radius: var(--r-pill);
+  padding: 16px 24px; font-size: var(--fs-body); font-weight: 650;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  transition: transform 0.18s var(--ease), filter 0.18s var(--ease), background 0.2s;
+  user-select: none;
+}
+.btn:active { transform: scale(0.96); }
+.btn-primary { background: var(--grad); color: #fff; box-shadow: var(--glow), var(--sh-2); }
+.btn-primary:active { filter: brightness(1.08); }
+.btn-ghost { background: var(--surface-2); color: var(--text); }
+.btn-block { width: 100%; }
+
+/* ---- misc -----------------------------------------------------------------*/
+.row { display: flex; align-items: center; gap: var(--s3); }
+.col { display: flex; flex-direction: column; }
+.icon-btn {
+  width: 44px; height: 44px; border-radius: var(--r-pill);
+  display: grid; place-items: center; background: var(--surface-2); border: 1px solid var(--border);
+  transition: transform 0.18s var(--ease);
+}
+.icon-btn:active { transform: scale(0.9); }
+
+.dots { display: flex; gap: 8px; justify-content: center; }
+.dot { width: 8px; height: 8px; border-radius: 999px; background: var(--surface-2); transition: all var(--dur) var(--ease); }
+.dot.on { width: 26px; background: var(--grad); }
+
+.skeleton {
+  background: linear-gradient(100deg, var(--surface) 30%, var(--surface-2) 50%, var(--surface) 70%);
+  background-size: 200% 100%; animation: shimmer 1.4s infinite;
+}
+@keyframes shimmer { to { background-position: -200% 0; } }
