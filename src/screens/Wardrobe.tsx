@@ -20,7 +20,8 @@ export default function Wardrobe() {
   const items = (cat?.items ?? []).filter((i) => slot === "all" || i.slot === slot);
   const label = (s: string) => (s === "all" ? "All" : cat?.slots[s]?.label ?? s);
   const toggle = (it: WardrobeItem) =>
-    equip(it.slot, equipped[it.slot]?.file === it.file ? null : { file: it.file });
+    equip(it.slot, equipped[it.slot]?.file === it.file ? null
+      : { file: it.file, attachType: it.attach_type, attachTo: it.attach_to });
 
   return (
     <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column" }}>

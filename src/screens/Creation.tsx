@@ -27,14 +27,14 @@ export default function Creation() {
     const minWait = new Promise((r) => setTimeout(r, STAGES.length * 750));
     try {
       const [res] = await Promise.all([analyzePhoto(photo), minWait]);
-      const base = res.gender === "female" ? AVATARS.meta_female : AVATARS.meta_male;
+      const base = res.gender === "female" ? AVATARS.female : AVATARS.male;
       const params = res.engine_params ? await morphInfluences(res.engine_params) : null;
       setAvatar(base, params, voiceForGender(res.gender));
       reset("home");
     } catch (e) {
       // backend/model unavailable — proceed with a default base rather than block
       setNote(e instanceof Error ? e.message : "Analysis unavailable — using a default avatar.");
-      setTimeout(() => { setAvatar(AVATARS.meta_male, null); reset("home"); }, 1400);
+      setTimeout(() => { setAvatar(AVATARS.male, null); reset("home"); }, 1400);
     } finally { clearInterval(spin); }
   }
 
@@ -64,7 +64,7 @@ export default function Creation() {
 
             <div style={{ display: "grid", gap: 10, marginTop: 20 }}>
               <button className="btn btn-primary btn-block" disabled={!photo} style={{ opacity: photo ? 1 : 0.5 }} onClick={generate}>Generate my avatar</button>
-              <button className="btn btn-ghost btn-block" onClick={() => { setAvatar(AVATARS.meta_male, null); reset("home"); }}>Skip for now</button>
+              <button className="btn btn-ghost btn-block" onClick={() => { setAvatar(AVATARS.male, null); reset("home"); }}>Skip for now</button>
             </div>
           </motion.div>
         ) : (

@@ -20,6 +20,8 @@ export type WardrobeItem = {
   label: string;
   thumb: string; // e.g. "clothes/hoodie/thumbnail.png"
   file: string;
+  attach_type: "bone" | "skinned";
+  attach_to?: string; // bone name for bone-attached items
 };
 export type Catalog = {
   slots: Record<string, { label: string; tab?: string }>;

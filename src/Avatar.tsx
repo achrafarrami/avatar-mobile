@@ -1,19 +1,59 @@
 import { Suspense, useRef, useEffect, useMemo, Component, ReactNode } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { useGLTF, ContactShadows, OrbitControls, Html } from "@react-three/drei";
-import type { Group, Mesh } from "three";
+import { Group, Vector3, Quaternion, Matrix4, Skeleton } from "three";
+import type { Mesh, Object3D, Bone, SkinnedMesh } from "three";
+import { clone as skeletonClone } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { avatarUrl, wardrobeUrl } from "./api";
 import { useAvatar, Equip } from "./avatarStore";
 import { signals } from "./avatarSignals";
 
 type Params = Record<string, number> | null;
 
-function EquipItem({ file }: { file: string }) {
-  // Use the loaded scene directly (no clone): cloning a SkinnedMesh breaks its
-  // skeleton binding, so cloned hair/clothes collapse to the origin. One
-  // instance per item, so sharing the cached scene is fine.
-  const { scene } = useGLTF(wardrobeUrl(file));
-  return <primitive object={scene} />;
+// Attach a wardrobe item to the avatar — ported from the web WardrobeManager.
+//  - bone: rigid item parented to a bone (hair, glasses, hats), baking the
+//    bone's inverse world transform so it sits at the bone in world space.
+//  - skinned: re-bind the item's skinned meshes to the AVATAR's bones by name
+//    so they deform with it (beard, clothes).
+function EquipItem({ avatar, info }: { avatar: Object3D; info: Equip }) {
+  const { scene } = useGLTF(wardrobeUrl(info.file));
+  useEffect(() => {
+    avatar.updateMatrixWorld(true);
+    const src = skeletonClone(scene) as Object3D;   // clone (skeleton-safe) so the cache isn't mutated
+    src.updateMatrixWorld(true);
+    let holder: Object3D;
+
+    if (info.attachType === "skinned") {
+      const bones: Record<string, Bone> = {};
+      avatar.traverse((o) => { if ((o as Bone).isBone) bones[o.name] = o as Bone; });
+      const h = new Group();
+      const sms: SkinnedMesh[] = [];
+      src.traverse((o) => { if ((o as SkinnedMesh).isSkinnedMesh) sms.push(o as SkinnedMesh); });
+      for (const sm of sms) {
+        const mapped = sm.skeleton.bones.map((b) => bones[b.name] || null);
+        const world = sm.matrixWorld.clone();
+        h.add(sm);
+        sm.matrix.copy(world);
+        sm.matrix.decompose(sm.position, sm.quaternion, sm.scale);
+        sm.bind(new Skeleton(mapped.map((b, i) => b || sm.skeleton.bones[i]), sm.skeleton.boneInverses), sm.bindMatrix);
+        sm.frustumCulled = false;
+      }
+      avatar.add(h);
+      holder = h;
+    } else {
+      let parent: Object3D = avatar;
+      if (info.attachTo) avatar.traverse((o) => { if ((o as Bone).isBone && o.name === info.attachTo) parent = o; });
+      parent.add(src);
+      parent.updateWorldMatrix(true, false);
+      const pos = new Vector3().setFromMatrixPosition(parent.matrixWorld);
+      const desired = new Matrix4().compose(pos, new Quaternion(), new Vector3(1, 1, 1));
+      src.matrix.copy(parent.matrixWorld.clone().invert().multiply(desired));
+      src.matrix.decompose(src.position, src.quaternion, src.scale);
+      holder = src;
+    }
+    return () => { holder.parent?.remove(holder); };
+  }, [scene, avatar, info.attachType, info.attachTo, info.file]);
+  return null;
 }
 
 function Model({ file, params, equipped }: { file: string; params: Params; equipped: (Equip | null)[] }) {
@@ -57,7 +97,7 @@ function Model({ file, params, equipped }: { file: string; params: Params; equip
   return (
     <group ref={g}>
       <primitive object={scene} />
-      {equipped.map((e, i) => e && <EquipItem key={e.file + i} file={e.file} />)}
+      {equipped.map((e) => e && <EquipItem key={e.file} avatar={scene} info={e} />)}
     </group>
   );
 }
