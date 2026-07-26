@@ -40,12 +40,19 @@ export default function Wardrobe() {
       <div style={{ flex: 1 }} /> {/* avatar shows here — items appear on it live */}
 
       {/* sheet */}
-      <div style={{ background: "var(--bg)", borderTopLeftRadius: 28, borderTopRightRadius: 28, boxShadow: "0 -12px 30px rgba(0,0,0,0.4)", borderTop: "1px solid var(--border)", height: "64%", display: "flex", flexDirection: "column" }}>
-        <div style={{ width: 40, height: 5, borderRadius: 999, background: "var(--surface-2)", margin: "10px auto 4px" }} />
-        <div style={{ display: "flex", gap: 8, overflowX: "auto", padding: "6px 16px 10px", scrollbarWidth: "none" }}>
+      <div style={{ background: "var(--bg)", borderTopLeftRadius: 28, borderTopRightRadius: 28, boxShadow: "0 -12px 30px rgba(0,0,0,0.4)", borderTop: "1px solid var(--border)", height: "64%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <div style={{ width: 40, height: 5, borderRadius: 999, background: "var(--surface-2)", margin: "10px auto 4px", flexShrink: 0 }} />
+        <div style={{
+          display: "flex", gap: 8, flexShrink: 0,
+          overflowX: "auto", overflowY: "hidden", overscrollBehaviorX: "contain",
+          WebkitOverflowScrolling: "touch", scrollbarWidth: "none", padding: "6px 16px 10px",
+          // fade the trailing edge so the cut-off chip reads as "scroll for more"
+          WebkitMaskImage: "linear-gradient(to right, #000 92%, transparent)",
+          maskImage: "linear-gradient(to right, #000 92%, transparent)",
+        }}>
           {slots.map((s) => (
             <button key={s} onClick={() => setSlot(s)}
-              style={{ flex: "0 0 auto", padding: "9px 16px", borderRadius: 999, fontSize: 14, fontWeight: 600, border: "1px solid var(--border)", color: s === slot ? "#fff" : "var(--muted)", background: s === slot ? "var(--grad)" : "var(--surface)" }}>
+              style={{ flex: "0 0 auto", whiteSpace: "nowrap", padding: "9px 16px", borderRadius: 999, fontSize: 14, fontWeight: 600, border: "1px solid var(--border)", color: s === slot ? "#fff" : "var(--muted)", background: s === slot ? "var(--grad)" : "var(--surface)" }}>
               {label(s)}
             </button>
           ))}
