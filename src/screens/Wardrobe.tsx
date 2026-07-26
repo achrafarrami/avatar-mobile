@@ -30,9 +30,9 @@ export default function Wardrobe() {
   };
 
   return (
-    <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column" }}>
+    <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", pointerEvents: "none" }}>
       {/* back bar over the avatar (visible in the gap for live try-on) */}
-      <div className="row" style={{ padding: "calc(var(--sat) + 12px) 16px 8px", background: "linear-gradient(var(--bg), transparent)" }}>
+      <div className="row" style={{ padding: "calc(var(--sat) + 12px) 16px 8px", background: "linear-gradient(var(--bg), transparent)", pointerEvents: "auto" }}>
         <button className="icon-btn" aria-label="Back" onClick={back}><Icon name="back" size={22} /></button>
         <div className="h2" style={{ marginLeft: 4 }}>Wardrobe</div>
       </div>
@@ -40,7 +40,7 @@ export default function Wardrobe() {
       <div style={{ flex: 1 }} /> {/* avatar shows here — items appear on it live */}
 
       {/* sheet */}
-      <div style={{ background: "var(--bg)", borderTopLeftRadius: 28, borderTopRightRadius: 28, boxShadow: "0 -12px 30px rgba(0,0,0,0.4)", borderTop: "1px solid var(--border)", height: "64%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <div style={{ background: "var(--bg)", borderTopLeftRadius: 28, borderTopRightRadius: 28, boxShadow: "0 -12px 30px rgba(0,0,0,0.4)", borderTop: "1px solid var(--border)", height: "64%", display: "flex", flexDirection: "column", overflow: "hidden", pointerEvents: "auto" }}>
         <div style={{ width: 40, height: 5, borderRadius: 999, background: "var(--surface-2)", margin: "10px auto 4px", flexShrink: 0 }} />
         <div style={{
           display: "flex", gap: 8, flexShrink: 0,

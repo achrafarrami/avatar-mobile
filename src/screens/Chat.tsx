@@ -17,9 +17,9 @@ export default function Chat() {
   const submit = () => { const t = text; setText(""); send(t); };
 
   return (
-    <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column" }}>
+    <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", pointerEvents: "none" }}>
       {/* top bar over the avatar (which shows through the transparent gap) */}
-      <div className="row" style={{ padding: "calc(var(--sat) + 12px) 16px 8px", background: "linear-gradient(var(--bg), transparent)" }}>
+      <div className="row" style={{ padding: "calc(var(--sat) + 12px) 16px 8px", background: "linear-gradient(var(--bg), transparent)", pointerEvents: "auto" }}>
         <button className="icon-btn" aria-label="Back" onClick={back}><Icon name="back" size={22} /></button>
         <div className="h2" style={{ marginLeft: 4 }}>Chat</div>
       </div>
@@ -27,7 +27,7 @@ export default function Chat() {
       <div style={{ flex: 1 }} /> {/* avatar face visible here */}
 
       {/* opaque message sheet */}
-      <div style={{ background: "var(--bg)", borderTopLeftRadius: 28, borderTopRightRadius: 28, boxShadow: "0 -12px 30px rgba(0,0,0,0.35)", borderTop: "1px solid var(--border)", maxHeight: "62%", display: "flex", flexDirection: "column" }}>
+      <div style={{ background: "var(--bg)", borderTopLeftRadius: 28, borderTopRightRadius: 28, boxShadow: "0 -12px 30px rgba(0,0,0,0.35)", borderTop: "1px solid var(--border)", maxHeight: "62%", display: "flex", flexDirection: "column", pointerEvents: "auto" }}>
         <div style={{ flex: 1, overflowY: "auto", padding: "16px 16px 4px", display: "flex", flexDirection: "column", gap: 10, minHeight: 120 }}>
           {messages.length === 0 && <div className="muted" style={{ textAlign: "center", marginTop: 8, fontSize: 15 }}>Say hi to Aura — hold the mic, or type.</div>}
           {messages.map((m, i) => (

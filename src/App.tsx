@@ -11,6 +11,7 @@ import Home from "./screens/Home";
 import Chat from "./screens/Chat";
 import Wardrobe from "./screens/Wardrobe";
 import Settings from "./screens/Settings";
+import Animations from "./screens/Animations";
 
 // detail screens rendered as overlays above the persistent avatar + Home
 const DETAIL: Partial<Record<Screen, ReactNode>> = {
@@ -18,11 +19,11 @@ const DETAIL: Partial<Record<Screen, ReactNode>> = {
   wardrobe: <Wardrobe />,
   settings: <Settings />,
   customize: <Placeholder title="Customize" icon="sparkles" blurb="A full studio for hair, face, eyes, skin, brows, and colors — instant preview, randomize, undo/redo, favorites." />,
-  animations: <Placeholder title="Animations" icon="play" blurb="Preview every animation — wave, smile, laugh, celebrate, dance, thinking — playing instantly on your avatar." />,
+  animations: <Animations />,
   personality: <Placeholder title="Personality" icon="persona" blurb="Friendly, funny, professional, coach, teacher, storyteller — each reshapes voice, expressions, and tone." />,
 };
 // overlays that reveal the avatar behind them (transparent regions)
-const SHEET = new Set<Screen>(["chat", "wardrobe"]);
+const SHEET = new Set<Screen>(["chat", "wardrobe", "animations"]);
 
 function Router() {
   const { screen } = useNav();
@@ -42,13 +43,16 @@ function Router() {
   return (
     <>
       <PersistentAvatar />
-      <div style={{ position: "absolute", inset: 0, zIndex: 10 }}><Home /></div>
+      {/* wrappers are pointer-transparent so drags/pinches reach the avatar
+          canvas behind; each screen re-enables pointer events on its own panels.
+          Opaque (non-sheet) screens keep events since they fully cover the avatar. */}
+      <div style={{ position: "absolute", inset: 0, zIndex: 10, pointerEvents: "none" }}><Home /></div>
       <AnimatePresence>
         {screen !== "home" && (
           <motion.div key={screen}
             initial={{ opacity: 0, y: 28 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 28 }}
             transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
-            style={{ position: "absolute", inset: 0, zIndex: 20, background: SHEET.has(screen) ? "transparent" : "var(--bg)" }}>
+            style={{ position: "absolute", inset: 0, zIndex: 20, background: SHEET.has(screen) ? "transparent" : "var(--bg)", pointerEvents: SHEET.has(screen) ? "none" : "auto" }}>
             {DETAIL[screen]}
           </motion.div>
         )}
