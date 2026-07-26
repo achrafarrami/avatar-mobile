@@ -10,7 +10,7 @@ const STATUS: Record<Phase, string> = {
 const TABS: { icon: string; label: string; to: Screen }[] = [
   { icon: "chat", label: "Chat", to: "chat" },
   { icon: "wardrobe", label: "Wardrobe", to: "wardrobe" },
-  { icon: "sparkles", label: "Customize", to: "customize" },
+  { icon: "play", label: "Test", to: "animations" },
   { icon: "settings", label: "Settings", to: "settings" },
 ];
 

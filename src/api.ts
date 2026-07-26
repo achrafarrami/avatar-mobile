@@ -6,6 +6,24 @@ export const API_BASE =
 export const avatarUrl = (name: string) => `${API_BASE}/avatars/${name}`;
 export const wardrobeUrl = (rel: string) => `${API_BASE}/wardrobe/${rel}`;
 
+// Built animation library. The clips ship inside one "animated avatar" GLB
+// (only the meta_male export exists today); the avatar plays them on itself via
+// an AnimationMixer that retargets the shared CC_Base_* skeleton by name.
+export const clipsUrl = () => `${API_BASE}/animations/exports/avatar_animated_meta_male.glb`;
+
+export type Animation = {
+  id: string;
+  category: string;
+  description: string;
+  loop: boolean;
+};
+
+export async function fetchAnimations(): Promise<Animation[]> {
+  const r = await fetch(`${API_BASE}/animations`);
+  if (!r.ok) throw new Error(`animations ${r.status}`);
+  return r.json();
+}
+
 // Default avatar bases the backend serves (dev builds).
 export const AVATARS = {
   meta_male: "sandbox_meta_male.glb",
@@ -57,10 +75,13 @@ export const speakBuffer = (text: string, voice?: string) =>
 
 /** Recorded audio -> transcript (Whisper on the backend). */
 export async function transcribe(blob: Blob): Promise<string> {
+  // Whisper picks the decoder from the filename extension, so match the actual
+  // recording format (Chrome: webm, Safari: mp4) instead of hardcoding webm.
+  const ext = /mp4|mpeg|m4a/.test(blob.type) ? "mp4" : /ogg/.test(blob.type) ? "ogg" : "webm";
   const fd = new FormData();
-  fd.append("audio", blob, "clip.webm");
+  fd.append("audio", blob, `clip.${ext}`);
   const r = await fetch(`${API_BASE}/stt`, { method: "POST", body: fd });
-  if (!r.ok) throw new Error(`stt ${r.status}`);
+  if (!r.ok) throw new Error((await r.json().catch(() => null))?.detail || `stt ${r.status}`);
   return (await r.json()).text as string;
 }
 
