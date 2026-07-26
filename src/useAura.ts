@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import { chat, speak, transcribe, Msg } from "./api";
+import { chat, speakBuffer, transcribe, Msg } from "./api";
 import { signals } from "./avatarSignals";
 import { useAvatar } from "./avatarStore";
 
@@ -24,30 +24,26 @@ export function useAura() {
 
   const play = useCallback(async (text: string) => {
     setPhase("speaking"); signals.speaking = true;
-    let url = "";
+    let raf = 0;
     try {
-      url = await speak(text, voice);
-      const el = new Audio(url);
+      const bytes = await speakBuffer(text, voice);
       const ctx = audio();
-      const src = ctx.createMediaElementSource(el);          // object URL = same-origin, readable
+      await ctx.resume().catch(() => {});
+      const audioBuf = await ctx.decodeAudioData(bytes);
+      const src = ctx.createBufferSource(); src.buffer = audioBuf;
       const an = ctx.createAnalyser(); an.fftSize = 256;
-      src.connect(an); an.connect(ctx.destination);
-      const buf = new Uint8Array(an.fftSize);
-      let raf = 0;
+      src.connect(an); an.connect(ctx.destination);           // BufferSource always feeds the analyser
+      const data = new Uint8Array(an.fftSize);
       const loop = () => {
-        an.getByteTimeDomainData(buf);
+        an.getByteTimeDomainData(data);
         let s = 0;
-        for (let i = 0; i < buf.length; i++) { const x = (buf[i] - 128) / 128; s += x * x; }
-        signals.mouth = Math.min(1, Math.sqrt(s / buf.length) * 3.4); // RMS -> openness
+        for (let i = 0; i < data.length; i++) { const x = (data[i] - 128) / 128; s += x * x; }
+        signals.mouth = Math.min(1, Math.sqrt(s / data.length) * 4.5); // RMS -> jaw openness
         raf = requestAnimationFrame(loop);
       };
-      await ctx.resume().catch(() => {});
-      await el.play().catch(() => {});
-      loop();
-      await new Promise<void>((res) => { el.onended = () => res(); el.onerror = () => res(); });
-      cancelAnimationFrame(raf);
+      await new Promise<void>((res) => { src.onended = () => res(); src.start(); loop(); });
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
-    finally { signals.mouth = 0; signals.speaking = false; setPhase("idle"); if (url) URL.revokeObjectURL(url); }
+    finally { cancelAnimationFrame(raf); signals.mouth = 0; signals.speaking = false; setPhase("idle"); }
   }, [voice]);
 
   const send = useCallback(async (text: string) => {

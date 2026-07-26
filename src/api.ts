@@ -47,9 +47,9 @@ async function post(path: string, body: unknown) {
 export const chat = (message: string, history: Msg[]) =>
   post("/chat", { message, history }).then((r) => r.json()).then((d) => d.reply as string);
 
-/** Text -> spoken audio; returns an object URL for an <audio>. Caller revokes. */
-export const speak = (text: string, voice?: string) =>
-  post("/tts", { text, voice }).then((r) => r.blob()).then((b) => URL.createObjectURL(b));
+/** Text -> spoken audio as raw bytes (decoded via Web Audio for lip-sync). */
+export const speakBuffer = (text: string, voice?: string) =>
+  post("/tts", { text, voice }).then((r) => r.arrayBuffer());
 
 /** Recorded audio -> transcript (Whisper on the backend). */
 export async function transcribe(blob: Blob): Promise<string> {
