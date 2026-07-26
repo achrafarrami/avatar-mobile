@@ -39,6 +39,9 @@ function EquipItem({ avatar, info }: { avatar: Object3D; info: Equip }) {
         sm.frustumCulled = false;
       }
       avatar.add(h);
+      // meta fit: skinned holder sits in avatar/world space, so nudge directly
+      if (info.offset) h.position.set(info.offset[0], info.offset[1], info.offset[2]);
+      if (info.scale) h.scale.setScalar(info.scale);
       holder = h;
     } else {
       let parent: Object3D = avatar;
@@ -46,13 +49,15 @@ function EquipItem({ avatar, info }: { avatar: Object3D; info: Equip }) {
       parent.add(src);
       parent.updateWorldMatrix(true, false);
       const pos = new Vector3().setFromMatrixPosition(parent.matrixWorld);
-      const desired = new Matrix4().compose(pos, new Quaternion(), new Vector3(1, 1, 1));
+      if (info.offset) pos.add(new Vector3(info.offset[0], info.offset[1], info.offset[2])); // meta fit (world m)
+      const s = info.scale ?? 1;
+      const desired = new Matrix4().compose(pos, new Quaternion(), new Vector3(s, s, s));
       src.matrix.copy(parent.matrixWorld.clone().invert().multiply(desired));
       src.matrix.decompose(src.position, src.quaternion, src.scale);
       holder = src;
     }
     return () => { holder.parent?.remove(holder); };
-  }, [scene, avatar, info.attachType, info.attachTo, info.file]);
+  }, [scene, avatar, info.attachType, info.attachTo, info.file, info.offset, info.scale]);
   return null;
 }
 

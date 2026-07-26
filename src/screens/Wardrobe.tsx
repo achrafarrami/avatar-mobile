@@ -19,9 +19,15 @@ export default function Wardrobe() {
     [cat]);
   const items = (cat?.items ?? []).filter((i) => slot === "all" || i.slot === slot);
   const label = (s: string) => (s === "all" ? "All" : cat?.slots[s]?.label ?? s);
-  const toggle = (it: WardrobeItem) =>
-    equip(it.slot, equipped[it.slot]?.file === it.file ? null
-      : { file: it.file, attachType: it.attach_type, attachTo: it.attach_to });
+  // resolve the meta-head fit: swap to the meta glb if present, carry offset+scale
+  const toggle = (it: WardrobeItem) => {
+    if (equipped[it.slot]?.id === it.id) return equip(it.slot, null);
+    const m = it.styles?.meta;
+    equip(it.slot, {
+      id: it.id, file: m?.glb ?? it.file, attachType: it.attach_type, attachTo: it.attach_to,
+      offset: m?.offset, scale: m?.scale,
+    });
+  };
 
   return (
     <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column" }}>
@@ -50,7 +56,7 @@ export default function Wardrobe() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
             {!cat && !err && Array.from({ length: 6 }).map((_, i) => <div key={i} className="skeleton" style={{ aspectRatio: 1, borderRadius: 20 }} />)}
             {items.map((it) => {
-              const on = equipped[it.slot]?.file === it.file;
+              const on = equipped[it.slot]?.id === it.id;
               return (
                 <motion.button key={it.id} whileTap={{ scale: 0.93 }} onClick={() => toggle(it)}
                   style={{ position: "relative", aspectRatio: 1, borderRadius: 20, padding: 8, background: "var(--surface)", border: `1.5px solid ${on ? "var(--a2)" : "var(--border)"}`, display: "grid", gridTemplateRows: "1fr auto", gap: 4, color: "var(--text)", boxShadow: on ? "var(--glow)" : undefined }}>

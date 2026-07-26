@@ -22,6 +22,8 @@ export type WardrobeItem = {
   file: string;
   attach_type: "bone" | "skinned";
   attach_to?: string; // bone name for bone-attached items
+  // per-style fit for the meta/toon head (glb swap and/or offset+scale nudge)
+  styles?: { meta?: { glb?: string; offset?: [number, number, number]; scale?: number } };
 };
 export type Catalog = {
   slots: Record<string, { label: string; tab?: string }>;
