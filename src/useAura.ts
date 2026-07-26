@@ -1,12 +1,20 @@
 import { useCallback, useRef, useState } from "react";
 import { chat, speak, transcribe, Msg } from "./api";
 import { signals } from "./avatarSignals";
+import { useAvatar } from "./avatarStore";
 
 export type Phase = "idle" | "listening" | "thinking" | "speaking";
 
+// one shared AudioContext (browsers limit them); resumed on first user gesture
+let _ctx: AudioContext | null = null;
+const audio = () => (_ctx ??= new (window.AudioContext ||
+  (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)());
+
 // One conversation: hold-to-talk (mic -> stt -> chat -> tts) or send(text).
-// Drives signals.speaking so the 3D avatar lip-syncs while audio plays.
+// Real lip-sync: while the TTS audio plays we sample its waveform and push the
+// live mouth-openness into signals.mouth, which the 3D avatar reads each frame.
 export function useAura() {
+  const { voice } = useAvatar();
   const [phase, setPhase] = useState<Phase>("idle");
   const [messages, setMessages] = useState<Msg[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -16,14 +24,31 @@ export function useAura() {
 
   const play = useCallback(async (text: string) => {
     setPhase("speaking"); signals.speaking = true;
+    let url = "";
     try {
-      const url = await speak(text);
-      const a = new Audio(url);
-      await a.play().catch(() => {});
-      await new Promise<void>((res) => { a.onended = () => res(); a.onerror = () => res(); });
-      URL.revokeObjectURL(url);
-    } finally { signals.speaking = false; setPhase("idle"); }
-  }, []);
+      url = await speak(text, voice);
+      const el = new Audio(url);
+      const ctx = audio();
+      const src = ctx.createMediaElementSource(el);          // object URL = same-origin, readable
+      const an = ctx.createAnalyser(); an.fftSize = 256;
+      src.connect(an); an.connect(ctx.destination);
+      const buf = new Uint8Array(an.fftSize);
+      let raf = 0;
+      const loop = () => {
+        an.getByteTimeDomainData(buf);
+        let s = 0;
+        for (let i = 0; i < buf.length; i++) { const x = (buf[i] - 128) / 128; s += x * x; }
+        signals.mouth = Math.min(1, Math.sqrt(s / buf.length) * 3.4); // RMS -> openness
+        raf = requestAnimationFrame(loop);
+      };
+      await ctx.resume().catch(() => {});
+      await el.play().catch(() => {});
+      loop();
+      await new Promise<void>((res) => { el.onended = () => res(); el.onerror = () => res(); });
+      cancelAnimationFrame(raf);
+    } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+    finally { signals.mouth = 0; signals.speaking = false; setPhase("idle"); if (url) URL.revokeObjectURL(url); }
+  }, [voice]);
 
   const send = useCallback(async (text: string) => {
     const t = text.trim(); if (!t) return;

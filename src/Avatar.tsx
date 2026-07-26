@@ -42,8 +42,12 @@ function Model({ file, params }: { file: string; params: Params }) {
       g.current.position.y = Math.sin(t * 0.9) * 0.008;               // breathe
       g.current.rotation.y = Math.sin(t * 0.32) * 0.06 + (signals.speaking ? Math.sin(t * 6) * 0.01 : 0);
     }
-    if (mouth) mouth.m.morphTargetInfluences![mouth.i] =
-      signals.speaking ? Math.abs(Math.sin(t * 11)) * 0.55 + 0.1 : 0; // lip-sync-ish
+    if (mouth) {
+      // lip-sync: chase the live waveform openness (signals.mouth), smoothed
+      const target = signals.speaking ? signals.mouth * 0.85 : 0;
+      const infl = mouth.m.morphTargetInfluences!;
+      infl[mouth.i] += (target - infl[mouth.i]) * 0.45;
+    }
   });
 
   return <primitive ref={g} object={scene} />;

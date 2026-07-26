@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Icon } from "../ui";
 import { useNav } from "../nav";
-import { useAvatar } from "../avatarStore";
+import { useAvatar, voiceForGender } from "../avatarStore";
 import { analyzePhoto, morphInfluences, AVATARS } from "../api";
 
 const STAGES = ["Analyzing face", "Extracting features", "Building your head",
@@ -29,7 +29,7 @@ export default function Creation() {
       const [res] = await Promise.all([analyzePhoto(photo), minWait]);
       const base = res.gender === "female" ? AVATARS.meta_female : AVATARS.meta_male;
       const params = res.engine_params ? await morphInfluences(res.engine_params) : null;
-      setAvatar(base, params);
+      setAvatar(base, params, voiceForGender(res.gender));
       reset("home");
     } catch (e) {
       // backend/model unavailable — proceed with a default base rather than block
