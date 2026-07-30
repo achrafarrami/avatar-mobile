@@ -5,3 +5,6 @@ dist/
 .env.local
 Thumbs.db
 .DS_Store
+
+.env*
+!.env.example
