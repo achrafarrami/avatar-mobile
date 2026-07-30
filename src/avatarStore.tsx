@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useRef, useEffect, ReactNode } from "react";
 import { AVATARS, fetchCatalog, WardrobeItem } from "./api";
 import { loadClipLibrary, LoadedClips, BASE_IDLE_CLIP } from "./clips";
+import { Look } from "./appearance";
 
 export type Equip = {
   id: string;
@@ -31,6 +32,8 @@ type AvatarState = {
   file: string;
   params: Record<string, number> | null;
   voice: string;
+  look: Look | null;        // measured photo colors (skin/brows/iris)
+  setLook: (l: Look | null) => void;
   equipped: Equipped;
   clip: string | null;      // built animation clip currently playing (by name)
   clipLoop: boolean;
@@ -55,6 +58,7 @@ export function AvatarProvider({ children }: { children: ReactNode }) {
   const [file, setFile] = useState<string>(AVATARS.meta_male);
   const [params, setParams] = useState<Record<string, number> | null>(null);
   const [voice, setVoice] = useState(() => localStorage.getItem("aura-voice") || "onyx");
+  const [look, setLook] = useState<Look | null>(null);
   const [equipped, setEquipped] = useState<Equipped>({});
   const [clip, setClip] = useState<string | null>(BASE_IDLE_CLIP);
   const [clipLoop, setClipLoop] = useState(true);
@@ -96,12 +100,12 @@ export function AvatarProvider({ children }: { children: ReactNode }) {
 
   return (
     <Ctx.Provider value={{
-      file, params, voice, equipped, clip, clipLoop, clipLib, clipLoading,
+      file, params, voice, look, setLook, equipped, clip, clipLoop, clipLib, clipLoading,
       setAvatar: (f, p, v) => { setFile(f); setParams(p); if (v) { setVoice(v); localStorage.setItem("aura-voice", v); } },
       setVoice: (v) => { setVoice(v); localStorage.setItem("aura-voice", v); },
       // "Delete avatar": back to the stock base, no identity, default outfit + voice.
       resetAvatar: () => {
-        setFile(AVATARS.meta_male); setParams(null);
+        setFile(AVATARS.meta_male); setParams(null); setLook(null);
         setVoice("onyx"); localStorage.removeItem("aura-voice");
         equipDefaults(true);
       },

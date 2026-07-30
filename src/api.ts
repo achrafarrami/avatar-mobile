@@ -106,12 +106,22 @@ export async function morphInfluences(engineParams: Record<string, number>): Pro
   return out;
 }
 
-/** Photo -> identity engine params (the "looks like me" analysis). */
-export async function analyzePhoto(front: File): Promise<{ gender?: string; engine_params?: Record<string, number> }> {
+/** Photo -> identity engine params + appearance (the "looks like me"
+ *  analysis: gender, face geometry, hair/beard/glasses labels, and measured
+ *  pixel colors for skin/hair/brows/iris/clothing). */
+export async function analyzePhoto(front: File): Promise<{
+  gender?: string;
+  engine_params?: Record<string, number>;
+  appearance?: import("./appearance").Appearance;
+}> {
   const fd = new FormData();
   fd.append("front", front);
-  const r = await fetch(`${API_BASE}/analyze?appearance=false`, { method: "POST", body: fd });
+  const r = await fetch(`${API_BASE}/analyze?appearance=true`, { method: "POST", body: fd });
   if (!r.ok) throw new Error((await r.json().catch(() => null))?.detail || `analyze ${r.status}`);
   const d = await r.json();
-  return { gender: d.parameters?.gender, engine_params: d.engine_params };
+  return {
+    gender: d.parameters?.gender,
+    engine_params: d.engine_params,
+    appearance: d.parameters?.appearance,
+  };
 }

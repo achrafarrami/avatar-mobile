@@ -14,6 +14,7 @@ import { useSettings } from "./settings";
 useGLTF.preload(avatarUrl(AVATARS.meta_male));
 import { signals } from "./avatarSignals";
 import { retargetMorphs, LoadedClips, FACIAL_ONLY_CLIPS, applyIdleBodyPose, BASE_IDLE_CLIP } from "./clips";
+import { applyLook, Look } from "./appearance";
 import { useNav, SHEET_SCREENS } from "./nav";
 import { t } from "./i18n";
 
@@ -109,8 +110,8 @@ function EquipItem({ avatar, info }: { avatar: Object3D; info: Equip }) {
   return null;
 }
 
-function Model({ file, params, equipped, clip, loop, lib, onReady }:
-  { file: string; params: Params; equipped: (Equip | null)[]; clip: string | null; loop: boolean; lib: LoadedClips | null; onReady?: () => void }) {
+function Model({ file, params, equipped, clip, loop, lib, look, onReady }:
+  { file: string; params: Params; equipped: (Equip | null)[]; clip: string | null; loop: boolean; lib: LoadedClips | null; look: Look | null; onReady?: () => void }) {
   const { scene } = useGLTF(avatarUrl(file));
   const g = useRef<Group>(null!);
 
@@ -119,6 +120,10 @@ function Model({ file, params, equipped, clip, loop, lib, onReady }:
   // competing with the avatar for bandwidth.
   const onReadyRef = useRef(onReady); onReadyRef.current = onReady;
   useEffect(() => { onReadyRef.current?.(); }, [scene]);
+
+  // Measured photo colors (skin/brows/iris) — applied to the template
+  // materials; re-applied when the base swaps, restored when look clears.
+  useEffect(() => { applyLook(scene, look); }, [scene, look]);
 
   const meshes = useMemo(() => {
     const list: Mesh[] = [];
@@ -275,7 +280,7 @@ const IDLE_FIDGET_MIN_MS = 6000;
 const IDLE_FIDGET_MAX_MS = 14000;
 
 export function PersistentAvatar() {
-  const { file, params, equipped, clip, clipLoop, clipLib, playClip, stopClip } = useAvatar();
+  const { file, params, equipped, clip, clipLoop, clipLib, look, playClip, stopClip } = useAvatar();
   const list = useMemo(() => Object.values(equipped), [equipped]);
   const { screen, back } = useNav();
 
@@ -341,7 +346,7 @@ export function PersistentAvatar() {
           <directionalLight position={[-4, 3, -2]} intensity={1.0} color="#e8813c" />
           <directionalLight position={[0, 3, -5]} intensity={1.2} color="#ffd9b0" />
           <Suspense fallback={<Html center><Orb label={t("Waking your avatar…")} /></Html>}>
-            <Model file={file} params={params} equipped={list} clip={clip} loop={clipLoop} lib={clipLib} onReady={onModelReady} />
+            <Model file={file} params={params} equipped={list} clip={clip} loop={clipLoop} lib={clipLib} look={look} onReady={onModelReady} />
             {quality !== "low" &&
               <ContactShadows position={[0, 0, 0]} opacity={0.45} scale={7} blur={2.6} far={3} resolution={256} frames={1} />}
           </Suspense>

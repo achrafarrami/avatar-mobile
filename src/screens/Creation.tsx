@@ -2,8 +2,9 @@ import { useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Icon } from "../ui";
 import { useNav } from "../nav";
-import { useAvatar, voiceForGender } from "../avatarStore";
-import { analyzePhoto, morphInfluences, AVATARS } from "../api";
+import { useAvatar, voiceForGender, toEquip } from "../avatarStore";
+import { analyzePhoto, morphInfluences, fetchCatalog, AVATARS } from "../api";
+import { planEquips, lookFromAppearance } from "../appearance";
 import { useT, t as tt } from "../i18n";
 
 const STAGES = ["Analyzing face", "Extracting features", "Building your head",
@@ -12,7 +13,7 @@ const STAGES = ["Analyzing face", "Extracting features", "Building your head",
 export default function Creation() {
   const { reset } = useNav();
   const t = useT();
-  const { setAvatar } = useAvatar();
+  const { setAvatar, setLook, equip } = useAvatar();
   const fileInput = useRef<HTMLInputElement>(null);
   const [photo, setPhoto] = useState<File | null>(null);
   const [preview, setPreview] = useState<string>("");
@@ -31,7 +32,19 @@ export default function Creation() {
       const [res] = await Promise.all([analyzePhoto(photo), minWait]);
       const base = res.gender === "female" ? AVATARS.meta_female : AVATARS.meta_male;
       const params = res.engine_params ? await morphInfluences(res.engine_params) : null;
+      // voice always follows the detected gender (user can still change it in Settings)
       setAvatar(base, params, voiceForGender(res.gender));
+      // appearance: hair/beard/glasses equips + measured colors, same as the
+      // web sandbox — hair, beard, clothing tints on the items; skin/brows/
+      // iris on the template materials (via look).
+      try {
+        const cat = await fetchCatalog();
+        for (const step of planEquips(res.appearance ?? null)) {
+          const item = step.id ? cat.items.find((i) => i.id === step.id) : null;
+          equip(step.slot, item ? { ...toEquip(item), color: step.color } : null);
+        }
+      } catch { /* backend catalog unavailable — keep default outfit */ }
+      setLook(lookFromAppearance(res.appearance ?? null));
       reset("home");
     } catch (e) {
       // backend/model unavailable — proceed with a default base rather than block
