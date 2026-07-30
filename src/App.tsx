@@ -1,7 +1,9 @@
-import { ReactNode } from "react";
+import { ReactNode, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { NavProvider, useNav, Screen } from "./nav";
+import { NavProvider, useNav, Screen, SHEET_SCREENS } from "./nav";
 import { AvatarProvider } from "./avatarStore";
+import { useSettings, langCode } from "./settings";
+import { isRTL } from "./i18n";
 import { PersistentAvatar } from "./Avatar";
 import { Placeholder } from "./ui";
 import Splash from "./screens/Splash";
@@ -22,8 +24,6 @@ const DETAIL: Partial<Record<Screen, ReactNode>> = {
   animations: <Animations />,
   personality: <Placeholder title="Personality" icon="persona" blurb="Friendly, funny, professional, coach, teacher, storyteller — each reshapes voice, expressions, and tone." />,
 };
-// overlays that reveal the avatar behind them (transparent regions)
-const SHEET = new Set<Screen>(["chat", "wardrobe", "animations"]);
 
 function Router() {
   const { screen } = useNav();
@@ -52,7 +52,7 @@ function Router() {
           <motion.div key={screen}
             initial={{ opacity: 0, y: 28 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 28 }}
             transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
-            style={{ position: "absolute", inset: 0, zIndex: 20, background: SHEET.has(screen) ? "transparent" : "var(--bg)", pointerEvents: SHEET.has(screen) ? "none" : "auto" }}>
+            style={{ position: "absolute", inset: 0, zIndex: 20, background: SHEET_SCREENS.has(screen) ? "transparent" : "var(--bg)", pointerEvents: SHEET_SCREENS.has(screen) ? "none" : "auto" }}>
             {DETAIL[screen]}
           </motion.div>
         )}
@@ -62,6 +62,13 @@ function Router() {
 }
 
 export default function App() {
+  // UI language: mirror the writing direction onto <html> (Arabic = RTL).
+  const { language } = useSettings();
+  useEffect(() => {
+    document.documentElement.dir = isRTL(language) ? "rtl" : "ltr";
+    document.documentElement.lang = langCode(language);
+  }, [language]);
+
   return (
     <AvatarProvider>
       <NavProvider><Router /></NavProvider>

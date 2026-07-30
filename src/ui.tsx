@@ -39,7 +39,7 @@ export function Page({ children, scroll = true }: { children: ReactNode; scroll?
       initial={{ opacity: 0, x: 40 * dir }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -40 * dir }}
-      transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: 0.28, ease: [0.23, 1, 0.32, 1] }}
       style={{
         position: "absolute", inset: 0,
         paddingTop: "calc(var(--sat) + 8px)", paddingBottom: "calc(var(--sab) + 8px)",
@@ -69,10 +69,10 @@ export function Placeholder({ title, icon, blurb }: { title: string; icon: strin
       <TopBar title={title} />
       <div className="col" style={{ flex: 1, alignItems: "center", justifyContent: "center", textAlign: "center", padding: "0 32px", gap: 20 }}>
         <motion.div
-          initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: "spring", stiffness: 200, damping: 16 }}
-          style={{ width: 108, height: 108, borderRadius: 34, display: "grid", placeItems: "center", background: "var(--grad-soft)", border: "1px solid var(--border)", color: "var(--text)", boxShadow: "var(--glow)" }}>
-          <Icon name={icon} size={44} />
+          initial={{ scale: 0.92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: "spring", duration: 0.5, bounce: 0.2 }}
+          style={{ width: 96, height: 96, borderRadius: 26, display: "grid", placeItems: "center", background: "var(--ember-soft)", color: "var(--ember)" }}>
+          <Icon name={icon} size={42} />
         </motion.div>
         <div className="h1">{title}</div>
         <p className="muted" style={{ maxWidth: 300, lineHeight: 1.5 }}>{blurb}</p>

@@ -1,9 +1,11 @@
 import { useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNav } from "../nav";
+import { useT } from "../i18n";
 
 export default function Splash() {
   const { reset } = useNav();
+  const t = useT();
   useEffect(() => {
     const t = setTimeout(() => reset("onboarding"), 2200);
     return () => clearTimeout(t);
@@ -12,24 +14,21 @@ export default function Splash() {
   return (
     <motion.div
       style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center" }}
-      exit={{ opacity: 0, scale: 1.06 }} transition={{ duration: 0.5 }}
+      exit={{ opacity: 0, scale: 1.04 }} transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
     >
-      <div style={{ display: "grid", placeItems: "center", gap: 22 }}>
+      <div style={{ display: "grid", placeItems: "center", gap: 28 }}>
         <motion.div
-          initial={{ scale: 0.6, opacity: 0 }}
-          animate={{ scale: [0.94, 1.04, 0.94], opacity: 1 }}
-          transition={{ scale: { duration: 3, repeat: Infinity, ease: "easeInOut" }, opacity: { duration: 0.8 } }}
-          style={{ width: 132, height: 132, borderRadius: "50%", background: "var(--grad)", boxShadow: "var(--glow)" }}
+          initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
+          className="ember-orb" style={{ width: 20, height: 20 }}
         />
         <motion.div
-          initial={{ y: 14, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.35, duration: 0.6 }}
+          initial={{ y: 12, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.25, duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
           style={{ textAlign: "center" }}
         >
-          <div className="display grad-text" style={{ fontSize: 44 }}>Aura</div>
-          <div className="muted" style={{ marginTop: 4, letterSpacing: "0.16em", fontSize: 13, textTransform: "uppercase" }}>
-            Your AI Avatar
-          </div>
+          <div className="wordmark" style={{ fontSize: 52, letterSpacing: "-0.03em" }}>Aura</div>
+          <div className="muted" style={{ marginTop: 6, fontSize: 15 }}>{t("Your avatar, alive.")}</div>
         </motion.div>
       </div>
     </motion.div>

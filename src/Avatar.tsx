@@ -1,27 +1,69 @@
-import { Suspense, useRef, useEffect, useMemo, Component, ReactNode } from "react";
+import { Suspense, useRef, useEffect, useMemo, Component, ReactNode, PointerEvent, MouseEvent } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { useGLTF, ContactShadows, OrbitControls, Html } from "@react-three/drei";
 import { Group, Vector3, Quaternion, Matrix4, Skeleton,
-  AnimationMixer, LoopRepeat, LoopOnce } from "three";
-import type { Mesh, Object3D, Bone, SkinnedMesh } from "three";
+  AnimationMixer, LoopRepeat, LoopOnce, Color } from "three";
+import type { Mesh, Object3D, Bone, SkinnedMesh, MeshStandardMaterial } from "three";
 import { clone as skeletonClone } from "three/examples/jsm/utils/SkeletonUtils.js";
-import { avatarUrl, wardrobeUrl } from "./api";
+import { avatarUrl, wardrobeUrl, AVATARS } from "./api";
 import { useAvatar, Equip } from "./avatarStore";
+import { useSettings } from "./settings";
+
+// Start fetching the default avatar the moment the app boots — the download
+// runs during the splash/onboarding screens instead of after Home mounts.
+useGLTF.preload(avatarUrl(AVATARS.meta_male));
 import { signals } from "./avatarSignals";
-import { retargetMorphs, LoadedClips } from "./clips";
+import { retargetMorphs, LoadedClips, FACIAL_ONLY_CLIPS, applyIdleBodyPose, BASE_IDLE_CLIP } from "./clips";
+import { useNav, SHEET_SCREENS } from "./nav";
+import { t } from "./i18n";
 
 type Params = Record<string, number> | null;
+
+// Jaw lip-sync calibration (from the rig/export: talk clips bake ~0–4° for
+// normal speech, 10° ≈ 1cm chin drop; morph key ≈ jaw°/15). Lips need the
+// V_Open viseme on top of the jaw — Jaw_Open alone barely parts the toon lips.
+const JAW_MAX_DEG = 12;                                 // openness 1.0 → this many degrees (rig max)
+const JAW_MAX_RAD = (JAW_MAX_DEG * Math.PI) / 180;
+const JAW_MORPH_PER = JAW_MAX_DEG / 15;                 // Jaw_Open key at openness 1.0
+const V_OPEN_PER = 0.85;                                // V_Open viseme at openness 1.0 (lip parting)
+const WIDE_PER = 0.6;                                   // V_Wide cap (ee/s)
+const ROUND_PER = 0.7;                                  // V_Tight_O cap (oo/o)
+const _JAW_AXIS = new Vector3(0, 0, 1);                 // JawRoot local +z opens (verified in export)
+const _jawDelta = new Quaternion();
 
 // Attach a wardrobe item to the avatar — ported from the web WardrobeManager.
 //  - bone: rigid item parented to a bone (hair, glasses, hats), baking the
 //    bone's inverse world transform so it sits at the bone in world space.
 //  - skinned: re-bind the item's skinned meshes to the AVATAR's bones by name
 //    so they deform with it (beard, clothes).
+/** Tint every material under `root` (user color pick), or restore the item's
+ *  authored colors when `color` is undefined. Originals are stashed on first use. */
+function tintItem(root: Object3D, color?: string) {
+  root.traverse((o) => {
+    const mesh = o as Mesh;
+    if (!mesh.isMesh || !mesh.material) return;
+    for (const mat of (Array.isArray(mesh.material) ? mesh.material : [mesh.material]) as MeshStandardMaterial[]) {
+      if (!mat.color) continue;
+      mat.userData.origColor ??= mat.color.clone();
+      if (color) mat.color.set(color); else mat.color.copy(mat.userData.origColor as Color);
+    }
+  });
+}
+
 function EquipItem({ avatar, info }: { avatar: Object3D; info: Equip }) {
   const { scene } = useGLTF(wardrobeUrl(info.file));
+  const holderRef = useRef<Object3D | null>(null);
+  const colorRef = useRef(info.color); colorRef.current = info.color;
   useEffect(() => {
     avatar.updateMatrixWorld(true);
     const src = skeletonClone(scene) as Object3D;   // clone (skeleton-safe) so the cache isn't mutated
+    // materials are still shared with the cached GLTF — clone them so a tint
+    // on this instance never leaks into the cache (or other equipped items)
+    src.traverse((o) => {
+      const m = o as Mesh;
+      if (m.isMesh && m.material)
+        m.material = Array.isArray(m.material) ? m.material.map((x) => x.clone()) : m.material.clone();
+    });
     src.updateMatrixWorld(true);
     let holder: Object3D;
 
@@ -58,45 +100,62 @@ function EquipItem({ avatar, info }: { avatar: Object3D; info: Equip }) {
       src.matrix.decompose(src.position, src.quaternion, src.scale);
       holder = src;
     }
-    return () => { holder.parent?.remove(holder); };
+    holderRef.current = holder;
+    tintItem(holder, colorRef.current);
+    return () => { holderRef.current = null; holder.parent?.remove(holder); };
   }, [scene, avatar, info.attachType, info.attachTo, info.file, info.offset, info.scale]);
+  // recolor in place — no re-clone/re-bind, so dragging a color picker stays smooth
+  useEffect(() => { if (holderRef.current) tintItem(holderRef.current, info.color); }, [info.color]);
   return null;
 }
 
-function Model({ file, params, equipped, clip, loop, lib }:
-  { file: string; params: Params; equipped: (Equip | null)[]; clip: string | null; loop: boolean; lib: LoadedClips | null }) {
+function Model({ file, params, equipped, clip, loop, lib, onReady }:
+  { file: string; params: Params; equipped: (Equip | null)[]; clip: string | null; loop: boolean; lib: LoadedClips | null; onReady?: () => void }) {
   const { scene } = useGLTF(avatarUrl(file));
   const g = useRef<Group>(null!);
+
+  // Mounting means the GLB resolved and the avatar renders this frame — tell
+  // the parent so it can start the (much larger) clip-library download without
+  // competing with the avatar for bandwidth.
+  const onReadyRef = useRef(onReady); onReadyRef.current = onReady;
+  useEffect(() => { onReadyRef.current?.(); }, [scene]);
 
   const meshes = useMemo(() => {
     const list: Mesh[] = [];
     scene.traverse((o) => { if ((o as Mesh).isMesh && (o as Mesh).morphTargetDictionary) list.push(o as Mesh); });
     return list;
   }, [scene]);
-  // Mouth-open targets for lip-sync — a VISIBLE open morph driven across EVERY
-  // mesh that has it (body + teeth + tongue), not just the first mesh, so the
-  // lips actually part. Prefer Jaw_Open, then the V_Open viseme.
+  // The mouth OPENER on this rig is the CC_Base_JawRoot BONE (local +z,
+  // rest-relative; ~1cm chin drop per 10°) — the Jaw_Open morph only shapes the
+  // lips (≈ jaw°/15) and alone leaves the toon lips closed. Lip-sync must drive
+  // the bone, with the morph layered at the calibrated ratio.
+  const jaw = useMemo(() => {
+    const b = scene.getObjectByName("CC_Base_JawRoot") as Bone | undefined;
+    return b ? { bone: b, rest: b.quaternion.clone() } : null;
+  }, [scene]);
+  // Lip-sync morph channels, each fanned out across EVERY mesh that carries the
+  // key (body + teeth + tongue), not just the first mesh:
+  //   jawMorph Jaw_Open  — chin/lip follow of the jaw bone (≈ deg/15)
+  //   open     V_Open    — the actual lip-parting viseme (this is what shows)
+  //   wide     V_Wide    — lip spread for ee/s sounds
+  //   round    V_Tight_O — lip rounding for oo/o sounds
   const mouthTargets = useMemo(() => {
-    const PREF = ["Jaw_Open", "V_Open", "Mouth_Open", "jawOpen", "mouthOpen"];
-    let key = PREF.find((k) => meshes.some((m) => k in m.morphTargetDictionary!));
-    if (!key) for (const m of meshes) {
-      const f = Object.keys(m.morphTargetDictionary!).find((x) => /jaw.?open|mouth.?open|^v_open$/i.test(x));
-      if (f) { key = f; break; }
-    }
-    if (!key) return [];
-    const out: { infl: number[]; i: number }[] = [];
-    for (const m of meshes) {
-      const i = m.morphTargetDictionary![key];
-      if (i !== undefined) out.push({ infl: m.morphTargetInfluences as unknown as number[], i });
-    }
-    return out;
+    const find = (key: string) => {
+      const out: { infl: number[]; i: number }[] = [];
+      for (const m of meshes) {
+        const i = m.morphTargetDictionary![key];
+        if (i !== undefined) out.push({ infl: m.morphTargetInfluences as unknown as number[], i });
+      }
+      return out;
+    };
+    return { jawMorph: find("Jaw_Open"), open: find("V_Open"), wide: find("V_Wide"), round: find("V_Tight_O") };
   }, [meshes]);
 
   // The AnimationMixer lives HERE (not a child) so mixer.update() and the
   // lip-sync override run in one frame callback, mixer first — lip-sync always
   // wins the mouth even while a talking clip animates the body/face.
   const mixerRef = useRef<AnimationMixer | null>(null);
-  const mouthSmooth = useRef(0);   // smoothed lip-sync openness (absolute)
+  const mouthSmooth = useRef({ open: 0, wide: 0, round: 0 }); // smoothed lip-sync channels (absolute)
   useEffect(() => {
     if (!clip || !lib) { mixerRef.current = null; return; }
     const src = lib.clips.find((c) => c.name === clip);
@@ -110,7 +169,14 @@ function Model({ file, params, equipped, clip, loop, lib }:
     });
     const mixer = new AnimationMixer(scene);
     mixerRef.current = mixer;
-    const action = mixer.clipAction(retargetMorphs(src, scene, lib.srcNames));
+    let retargeted = retargetMorphs(src, scene, lib.srcNames);
+    if (FACIAL_ONLY_CLIPS.has(clip)) {
+      // facial-only clip: its own body bones are a baked non-idle rest (T-ish) —
+      // hold the idle clip's natural arm/hand/leg pose underneath the expression.
+      const idleSrc = lib.clips.find((c) => c.name === BASE_IDLE_CLIP);
+      if (idleSrc) retargeted = applyIdleBodyPose(retargeted, idleSrc);
+    }
+    const action = mixer.clipAction(retargeted);
     action.reset();
     action.setLoop(loop ? LoopRepeat : LoopOnce, Infinity);
     action.clampWhenFinished = true;
@@ -151,20 +217,24 @@ function Model({ file, params, equipped, clip, loop, lib }:
           + (signals.listening ? Math.sin(t * 1.5) * 0.05 : 0);  // slow curious sway
       }
     }
-    // 2) lip-sync AFTER the mixer, across all mouth meshes. Smooth a stored value
-    // and ASSIGN it absolutely so it fully overrides the clip's jaw each frame
-    // (a relative nudge only claws back half of what the mixer just wrote).
-    if (mouthTargets.length) {
-      if (signals.speaking) {
-        mouthSmooth.current += (signals.mouth - mouthSmooth.current) * 0.5;
-        for (const { infl, i } of mouthTargets) infl[i] = mouthSmooth.current;
-      } else if (!clip) {                 // idle: ease the mouth closed
-        mouthSmooth.current += (0 - mouthSmooth.current) * 0.3;
-        for (const { infl, i } of mouthTargets) infl[i] = mouthSmooth.current;
-      } else {
-        mouthSmooth.current = 0;          // a non-speaking clip owns the mouth
-      }
+    // 2) lip-sync AFTER the mixer so it fully overrides the clip's baked jaw +
+    // mouth visemes each frame (bone quaternion + morphs assigned absolutely).
+    // Fast attack / slower release keeps syllables crisp without flicker.
+    const sm = mouthSmooth.current;
+    const ease = (cur: number, target: number) =>
+      cur + (target - cur) * (target > cur ? 0.65 : 0.35);
+    sm.open = ease(sm.open, signals.speaking ? signals.mouth : 0);
+    sm.wide = ease(sm.wide, signals.speaking ? signals.mouthWide : 0);
+    sm.round = ease(sm.round, signals.speaking ? signals.mouthRound : 0);
+    const v = sm.open;
+    if (signals.speaking || v + sm.wide + sm.round > 0.002) {
+      if (jaw) jaw.bone.quaternion.copy(jaw.rest).multiply(_jawDelta.setFromAxisAngle(_JAW_AXIS, v * JAW_MAX_RAD));
+      for (const { infl, i } of mouthTargets.jawMorph) infl[i] = v * JAW_MORPH_PER;
+      for (const { infl, i } of mouthTargets.open) infl[i] = v * V_OPEN_PER;
+      for (const { infl, i } of mouthTargets.wide) infl[i] = sm.wide * WIDE_PER;
+      for (const { infl, i } of mouthTargets.round) infl[i] = sm.round * ROUND_PER;
     }
+    // else: mouth is closed and nothing is speaking — the clip owns jaw + morphs
   });
 
   return (
@@ -178,7 +248,7 @@ function Model({ file, params, equipped, clip, loop, lib }:
 function Orb({ label }: { label?: string }) {
   return (
     <div style={{ display: "grid", placeItems: "center", gap: 14, textAlign: "center" }}>
-      <div style={{ width: 120, height: 120, borderRadius: "50%", background: "var(--grad)", filter: "blur(2px)", boxShadow: "var(--glow)", animation: "breathe 2.6s var(--ease) infinite" }} />
+      <div className="ember-orb" style={{ width: 24, height: 24 }} />
       {label && <div className="faint" style={{ fontSize: 13, maxWidth: 220 }}>{label}</div>}
       <style>{`@keyframes breathe{0%,100%{transform:scale(0.92);opacity:.75}50%{transform:scale(1.06);opacity:1}}`}</style>
     </div>
@@ -190,7 +260,7 @@ class Boundary extends Component<{ children: ReactNode }, { err: boolean }> {
   static getDerivedStateFromError() { return { err: true }; }
   render() {
     return this.state.err
-      ? <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center" }}><Orb label="Start the backend on :8100 to bring your avatar to life" /></div>
+      ? <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center" }}><Orb label={t("Start the backend on :8100 to bring your avatar to life")} /></div>
       : this.props.children;
   }
 }
@@ -198,25 +268,82 @@ class Boundary extends Component<{ children: ReactNode }, { err: boolean }> {
 /** One always-mounted avatar for the whole app — never re-uploads on nav, so
  *  it never blinks out, and only one WebGL context ever exists. Home/Chat show
  *  it (transparent regions); other screens cover it. */
+// Idle fidgets: occasional one-shot gestures on top of the baseline idle clip,
+// so waiting for the user to speak doesn't read as a frozen statue.
+const IDLE_FIDGETS = ["look_around", "excited"];
+const IDLE_FIDGET_MIN_MS = 6000;
+const IDLE_FIDGET_MAX_MS = 14000;
+
 export function PersistentAvatar() {
-  const { file, params, equipped, clip, clipLoop, clipLib } = useAvatar();
+  const { file, params, equipped, clip, clipLoop, clipLib, playClip, stopClip } = useAvatar();
   const list = useMemo(() => Object.values(equipped), [equipped]);
+  const { screen, back } = useNav();
+
+  // Tap the avatar (not a drag — OrbitControls owns those) to close whichever
+  // sheet screen is showing it through the transparent gap.
+  const downPos = useRef<{ x: number; y: number } | null>(null);
+  const onPointerDown = (e: PointerEvent) => { downPos.current = { x: e.clientX, y: e.clientY }; };
+  const onClick = (e: MouseEvent) => {
+    if (!SHEET_SCREENS.has(screen)) return;
+    const start = downPos.current;
+    const moved = start ? Math.hypot(e.clientX - start.x, e.clientY - start.y) : 0;
+    if (moved < 8) back();
+  };
+
+  // Refs so the scheduler (mounted once, for the app's lifetime) always sees
+  // the latest clip/lib/actions without resetting its own timer on every
+  // avatarStore re-render (playClip/stopClip are fresh functions each render).
+  const clipRef = useRef(clip); clipRef.current = clip;
+  const clipLibRef = useRef(clipLib); clipLibRef.current = clipLib;
+  const playClipRef = useRef(playClip); playClipRef.current = playClip;
+  const stopClipRef = useRef(stopClip); stopClipRef.current = stopClip;
+  // Clip library loads only once the avatar itself is visible (Model onReady) —
+  // starting the 28MB download alongside the avatar GLB delays first paint.
+  const clipsKicked = useRef(false);
+  const onModelReady = () => {
+    if (clipsKicked.current) return;
+    clipsKicked.current = true;
+    playClipRef.current(BASE_IDLE_CLIP);
+  };
+  useEffect(() => {
+    let stopTimer: ReturnType<typeof setTimeout> | undefined;
+    let nextTimer: ReturnType<typeof setTimeout>;
+    const tick = () => {
+      if (!signals.listening && !signals.speaking && clipRef.current === BASE_IDLE_CLIP) {
+        const name = IDLE_FIDGETS[Math.floor(Math.random() * IDLE_FIDGETS.length)];
+        playClipRef.current(name);
+        const dur = clipLibRef.current?.clips.find((c) => c.name === name)?.duration ?? 2;
+        stopTimer = setTimeout(() => stopClipRef.current(), dur * 1000);
+      }
+      nextTimer = setTimeout(tick, IDLE_FIDGET_MIN_MS + Math.random() * (IDLE_FIDGET_MAX_MS - IDLE_FIDGET_MIN_MS));
+    };
+    nextTimer = setTimeout(tick, IDLE_FIDGET_MIN_MS);
+    return () => { clearTimeout(nextTimer); clearTimeout(stopTimer); };
+  }, []);
+
+  // Graphics quality (Settings): render scale + ground shadow. dpr updates
+  // live; antialias is fixed at context creation so it stays on.
+  const { quality } = useSettings();
+  const DPR: Record<string, [number, number]> = { low: [0.75, 1], medium: [1, 1.5], high: [1, 2] };
+
   return (
-    <div style={{ position: "absolute", inset: 0, zIndex: 0 }}>
+    <div style={{ position: "absolute", inset: 0, zIndex: 0 }} onPointerDown={onPointerDown} onClick={onClick}>
       <Boundary>
         <Canvas
-          dpr={[1, 1.5]}
+          dpr={DPR[quality] ?? DPR.high}
           camera={{ position: [0, 1.5, 1.75], fov: 30 }}   // portrait: face clearly visible
           gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
           style={{ width: "100%", height: "100%" }}
         >
           <ambientLight intensity={0.75} />
           <directionalLight position={[3, 6, 4]} intensity={2.2} />
-          <directionalLight position={[-4, 3, -2]} intensity={1.1} color="#a25bff" />
-          <directionalLight position={[0, 3, -5]} intensity={1.4} color="#6d6bff" />
-          <Suspense fallback={<Html center><Orb label="Waking your avatar…" /></Html>}>
-            <Model file={file} params={params} equipped={list} clip={clip} loop={clipLoop} lib={clipLib} />
-            <ContactShadows position={[0, 0, 0]} opacity={0.45} scale={7} blur={2.6} far={3} resolution={256} frames={1} />
+          {/* warm ember rim + soft candlelight back fill — matches the UI world */}
+          <directionalLight position={[-4, 3, -2]} intensity={1.0} color="#e8813c" />
+          <directionalLight position={[0, 3, -5]} intensity={1.2} color="#ffd9b0" />
+          <Suspense fallback={<Html center><Orb label={t("Waking your avatar…")} /></Html>}>
+            <Model file={file} params={params} equipped={list} clip={clip} loop={clipLoop} lib={clipLib} onReady={onModelReady} />
+            {quality !== "low" &&
+              <ContactShadows position={[0, 0, 0]} opacity={0.45} scale={7} blur={2.6} far={3} resolution={256} frames={1} />}
           </Suspense>
           <OrbitControls
             target={[0, 1.45, 0]} enablePan={false}

@@ -1,34 +1,35 @@
 /* ============================================================================
-   Aura design system — tokens + base component styles.
-   Dark is the default; light via [data-theme="light"] or prefers-color-scheme.
+   Aura design system — warm dark + ember.
+   Warm near-black charcoal, bone text, one ember accent. The avatar carries
+   the color; the UI recedes. Dark is default (evening companion scene);
+   light via [data-theme="light"] or prefers-color-scheme.
    ========================================================================== */
 :root {
-  /* palette (dark) */
-  --bg: #08080d;
-  --bg-2: #0e0e17;
-  --surface: rgba(255, 255, 255, 0.055);
-  --surface-2: rgba(255, 255, 255, 0.09);
-  --surface-solid: #14141f;
-  --border: rgba(255, 255, 255, 0.1);
-  --text: #f4f4fb;
-  --muted: #9a9ab0;
-  --faint: #62627a;
+  /* palette (dark) — warm-tinted neutrals, never blue-gray */
+  --bg: #131110;
+  --bg-2: #1b1815;
+  --surface: rgba(245, 240, 232, 0.055);
+  --surface-2: rgba(245, 240, 232, 0.095);
+  --surface-solid: #211d19;
+  --border: rgba(245, 240, 232, 0.1);
+  --text: #f3eee6;
+  --muted: #a79e92;
+  --faint: #6f675d;
 
-  /* brand accent — indigo → violet → pink */
-  --a1: #6d6bff;
-  --a2: #a25bff;
-  --a3: #ff5bb0;
-  --accent: var(--a2);
-  --grad: linear-gradient(135deg, var(--a1) 0%, var(--a2) 52%, var(--a3) 100%);
-  --grad-soft: linear-gradient(135deg, rgba(109,107,255,0.22), rgba(255,91,176,0.22));
-  --glow: 0 0 60px -12px rgba(140, 100, 255, 0.55);
+  /* the one accent — ember */
+  --ember: #e8813c;
+  --ember-deep: #c46425;
+  --ember-soft: rgba(232, 129, 60, 0.14);
+  --on-ember: #2a1707; /* dark text on ember fills */
+  --danger: #e5604c;
 
-  /* type — native system stack (SF Pro / Segoe), no web-font download */
+  /* type — Bricolage for display voice, native stack for UI body */
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI",
-    Roboto, Inter, system-ui, sans-serif;
+    Roboto, system-ui, sans-serif;
+  --font-display: "Bricolage Grotesque Variable", var(--font);
   --fs-display: 34px;
   --fs-h1: 27px;
-  --fs-h2: 21px;
+  --fs-h2: 20px;
   --fs-body: 16px;
   --fs-sm: 14px;
   --fs-xs: 12px;
@@ -37,17 +38,19 @@
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px;
   --s6: 32px; --s7: 48px; --s8: 64px;
 
-  /* radius */
-  --r-sm: 12px; --r-md: 18px; --r-lg: 26px; --r-xl: 34px; --r-pill: 999px;
+  /* radius — 12–16 on cards; pills only for small controls */
+  --r-sm: 10px; --r-md: 14px; --r-lg: 16px; --r-xl: 20px; --r-pill: 999px;
 
-  /* elevation */
-  --sh-1: 0 2px 10px rgba(0, 0, 0, 0.25);
-  --sh-2: 0 10px 30px -8px rgba(0, 0, 0, 0.45);
-  --sh-3: 0 24px 60px -16px rgba(0, 0, 0, 0.6);
+  /* elevation — warm-tinted shadows with real offset */
+  --sh-1: 0 2px 8px rgba(18, 12, 6, 0.3);
+  --sh-2: 0 10px 28px -8px rgba(18, 12, 6, 0.5);
+  --sh-3: 0 22px 52px -16px rgba(18, 12, 6, 0.62);
+  --sh-ember: 0 8px 26px -6px rgba(232, 129, 60, 0.42);
 
-  /* motion */
-  --ease: cubic-bezier(0.22, 1, 0.36, 1);
-  --dur: 0.4s;
+  /* motion — strong ease-out for UI, iOS drawer curve for sheets */
+  --ease: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --dur: 0.24s;
 
   /* safe-area insets (notch / home indicator) */
   --sat: env(safe-area-inset-top);
@@ -55,28 +58,37 @@
 }
 
 :root[data-theme="light"] {
-  --bg: #f5f5fb;
-  --bg-2: #eef0f8;
-  --surface: rgba(20, 20, 40, 0.045);
-  --surface-2: rgba(20, 20, 40, 0.08);
-  --surface-solid: #ffffff;
-  --border: rgba(20, 20, 40, 0.1);
-  --text: #16162a;
-  --muted: #5c5c72;
-  --faint: #9494a8;
-  --glow: 0 0 60px -14px rgba(140, 100, 255, 0.4);
-  --sh-2: 0 10px 30px -10px rgba(60, 40, 120, 0.18);
-  --sh-3: 0 24px 60px -18px rgba(60, 40, 120, 0.22);
+  --bg: #f4efe7;
+  --bg-2: #ece5da;
+  --surface: rgba(32, 27, 21, 0.05);
+  --surface-2: rgba(32, 27, 21, 0.085);
+  --surface-solid: #fffdf9;
+  --border: rgba(32, 27, 21, 0.12);
+  --text: #201b15;
+  --muted: #6e6558;
+  --faint: #9c9284;
+  --ember: #d9701f;
+  --ember-deep: #b95c12;
+  --ember-soft: rgba(217, 112, 31, 0.13);
+  --on-ember: #fff8f0;
+  --sh-1: 0 2px 8px rgba(90, 66, 40, 0.1);
+  --sh-2: 0 10px 28px -10px rgba(90, 66, 40, 0.2);
+  --sh-3: 0 22px 52px -18px rgba(90, 66, 40, 0.24);
+  --sh-ember: 0 8px 24px -6px rgba(217, 112, 31, 0.35);
 }
 
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
-    --bg: #f5f5fb; --bg-2: #eef0f8;
-    --surface: rgba(20,20,40,0.045); --surface-2: rgba(20,20,40,0.08);
-    --surface-solid: #fff; --border: rgba(20,20,40,0.1);
-    --text: #16162a; --muted: #5c5c72; --faint: #9494a8;
-    --sh-2: 0 10px 30px -10px rgba(60,40,120,0.18);
-    --sh-3: 0 24px 60px -18px rgba(60,40,120,0.22);
+    --bg: #f4efe7; --bg-2: #ece5da;
+    --surface: rgba(32,27,21,0.05); --surface-2: rgba(32,27,21,0.085);
+    --surface-solid: #fffdf9; --border: rgba(32,27,21,0.12);
+    --text: #201b15; --muted: #6e6558; --faint: #9c9284;
+    --ember: #d9701f; --ember-deep: #b95c12;
+    --ember-soft: rgba(217,112,31,0.13); --on-ember: #fff8f0;
+    --sh-1: 0 2px 8px rgba(90,66,40,0.1);
+    --sh-2: 0 10px 28px -10px rgba(90,66,40,0.2);
+    --sh-3: 0 22px 52px -18px rgba(90,66,40,0.24);
+    --sh-ember: 0 8px 24px -6px rgba(217,112,31,0.35);
   }
 }
 
@@ -102,56 +114,66 @@ body {
   height: 100dvh;
   position: relative;
   overflow: hidden;
+  /* faint ember lamplight from above — the only ambient color */
   background:
-    radial-gradient(120% 80% at 50% -10%, rgba(109,107,255,0.16), transparent 60%),
-    radial-gradient(90% 60% at 90% 110%, rgba(255,91,176,0.12), transparent 60%),
+    radial-gradient(110% 70% at 50% -12%, rgba(232, 129, 60, 0.09), transparent 62%),
     var(--bg);
 }
 h1, h2, h3, p { margin: 0; }
 button { font-family: inherit; color: inherit; cursor: pointer; }
-:focus-visible { outline: 2px solid var(--a1); outline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--ember); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
 }
 
 /* ---- type helpers ---------------------------------------------------------*/
-.display { font-size: var(--fs-display); font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
-.h1 { font-size: var(--fs-h1); font-weight: 700; letter-spacing: -0.02em; }
+.display {
+  font-family: var(--font-display);
+  font-size: var(--fs-display); font-weight: 700;
+  letter-spacing: -0.025em; line-height: 1.08;
+  text-wrap: balance;
+}
+.h1 {
+  font-family: var(--font-display);
+  font-size: var(--fs-h1); font-weight: 650; letter-spacing: -0.02em;
+  text-wrap: balance;
+}
 .h2 { font-size: var(--fs-h2); font-weight: 650; letter-spacing: -0.01em; }
 .muted { color: var(--muted); }
 .faint { color: var(--faint); }
-.grad-text {
-  background: var(--grad); -webkit-background-clip: text; background-clip: text;
-  -webkit-text-fill-color: transparent;
+.wordmark {
+  font-family: var(--font-display);
+  font-weight: 700; letter-spacing: -0.02em;
 }
+.wordmark::after { content: "."; color: var(--ember); }
+.num { font-variant-numeric: tabular-nums; }
 
 /* ---- surfaces -------------------------------------------------------------*/
+/* elevation declared once: cards use a border, no shadow */
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
-  backdrop-filter: blur(20px) saturate(1.3);
-  -webkit-backdrop-filter: blur(20px) saturate(1.3);
-  box-shadow: var(--sh-2);
 }
+/* functional glass — only where live content passes underneath (dock, pills) */
 .glass {
-  background: var(--surface);
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
   border: 1px solid var(--border);
-  backdrop-filter: blur(24px) saturate(1.4);
-  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
 }
 
 /* ---- buttons --------------------------------------------------------------*/
 .btn {
   border: 0; border-radius: var(--r-pill);
-  padding: 16px 24px; font-size: var(--fs-body); font-weight: 650;
+  padding: 15px 24px; font-size: var(--fs-body); font-weight: 650;
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  transition: transform 0.18s var(--ease), filter 0.18s var(--ease), background 0.2s;
+  transition: transform 160ms var(--ease), background 160ms var(--ease);
   user-select: none;
 }
-.btn:active { transform: scale(0.96); }
-.btn-primary { background: var(--grad); color: #fff; box-shadow: var(--glow), var(--sh-2); }
-.btn-primary:active { filter: brightness(1.08); }
+.btn:active { transform: scale(0.97); }
+.btn-primary { background: var(--ember); color: var(--on-ember); box-shadow: var(--sh-ember); }
+.btn-primary:active { background: var(--ember-deep); }
 .btn-ghost { background: var(--surface-2); color: var(--text); }
 .btn-block { width: 100%; }
 
@@ -161,16 +183,28 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
 .icon-btn {
   width: 44px; height: 44px; border-radius: var(--r-pill);
   display: grid; place-items: center; background: var(--surface-2); border: 1px solid var(--border);
-  transition: transform 0.18s var(--ease);
+  transition: transform 160ms var(--ease);
 }
-.icon-btn:active { transform: scale(0.9); }
+.icon-btn:active { transform: scale(0.94); }
 
 .dots { display: flex; gap: 8px; justify-content: center; }
-.dot { width: 8px; height: 8px; border-radius: 999px; background: var(--surface-2); transition: all var(--dur) var(--ease); }
-.dot.on { width: 26px; background: var(--grad); }
+.dot { width: 8px; height: 8px; border-radius: 999px; background: var(--surface-2); transition: background var(--dur) var(--ease); }
+.dot.on { width: 26px; background: var(--ember); }
 
 .skeleton {
   background: linear-gradient(100deg, var(--surface) 30%, var(--surface-2) 50%, var(--surface) 70%);
   background-size: 200% 100%; animation: shimmer 1.4s infinite;
 }
 @keyframes shimmer { to { background-position: -200% 0; } }
+
+/* breathing ember disc — splash, creation, avatar loading */
+.ember-orb {
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 32%, #f5a468, var(--ember) 58%, var(--ember-deep));
+  box-shadow: var(--sh-ember);
+  animation: breathe 2.8s var(--ease) infinite;
+}
+@keyframes breathe {
+  0%, 100% { transform: scale(0.95); }
+  50% { transform: scale(1.05); }
+}

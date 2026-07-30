@@ -5,5 +5,5 @@ import react from "@vitejs/plugin-react";
 // actually need offline + installability beyond the manifest.
 export default defineConfig({
   plugins: [react()],
-  server: { host: true },
+  server: { host: true, port: Number(process.env.PORT) || 5199 },
 });

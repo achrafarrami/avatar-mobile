@@ -15,6 +15,10 @@ export type Screen =
   | "personality"
   | "settings";
 
+// overlay screens that reveal the avatar behind them (transparent regions) —
+// tapping the avatar through the gap closes back to home.
+export const SHEET_SCREENS = new Set<Screen>(["chat", "wardrobe", "animations"]);
+
 type Nav = {
   screen: Screen;
   dir: 1 | -1; // transition direction: forward / back

@@ -6,6 +6,7 @@ import { useAvatar } from "../avatarStore";
 import { useAura } from "../useAura";
 import { signals } from "../avatarSignals";
 import { fetchAnimations, Animation } from "../api";
+import { useT } from "../i18n";
 
 // Animation test bench. Two ways to drive the avatar:
 //  1. Built library — the pre-made clips, played on the live avatar (retargeted
@@ -15,6 +16,7 @@ import { fetchAnimations, Animation } from "../api";
 // Leaving the screen resets everything.
 export default function Animations() {
   const { back } = useNav();
+  const t = useT();
   const { clip, clipLoop, clipLoading, playClip, stopClip, setClipLoop } = useAvatar();
   const [anims, setAnims] = useState<Animation[]>([]);
   const [err, setErr] = useState<string | null>(null);
@@ -70,7 +72,7 @@ export default function Animations() {
     <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", pointerEvents: "none" }}>
       <div className="row" style={{ padding: "calc(var(--sat) + 12px) 16px 8px", background: "linear-gradient(var(--bg), transparent)", pointerEvents: "auto" }}>
         <button className="icon-btn" aria-label="Back" onClick={back}><Icon name="back" size={22} /></button>
-        <div className="h2" style={{ marginLeft: 4 }}>Test Animations</div>
+        <div className="h2" style={{ marginLeft: 4 }}>{t("Test Animations")}</div>
       </div>
 
       <div style={{ flex: 1 }} /> {/* avatar visible here, reacting live */}
@@ -80,20 +82,20 @@ export default function Animations() {
       {collapsed && (
         <div style={{ position: "absolute", top: "calc(var(--sat) + 12px)", right: 12, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8, zIndex: 5, pointerEvents: "auto" }}>
           <motion.button whileTap={{ scale: 0.96 }} onClick={() => setCollapsed(false)}
-            style={{ padding: "9px 16px", borderRadius: 999, border: "1px solid var(--border)", background: "var(--surface-2)", color: "var(--text)", fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: "0 6px 20px rgba(0,0,0,0.35)" }}>
+            style={{ padding: "9px 16px", borderRadius: 999, border: "1px solid var(--border)", background: "var(--surface-2)", color: "var(--text)", fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: "0 6px 20px rgba(18,12,6,0.4)" }}>
             ⌃ Controls
           </motion.button>
           {clip && (
             <motion.button whileTap={{ scale: 0.96 }} onClick={stopClip}
-              style={{ padding: "9px 16px", borderRadius: 999, border: 0, background: "var(--grad)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: "0 6px 20px rgba(0,0,0,0.35)" }}>
-              Stop
+              style={{ padding: "9px 16px", borderRadius: 999, border: 0, background: "var(--ember)", color: "var(--on-ember)", fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: "0 6px 20px rgba(18,12,6,0.4)" }}>
+              {t("Stop")}
             </motion.button>
           )}
         </div>
       )}
 
       {!collapsed && (
-      <div style={{ background: "var(--bg)", borderTopLeftRadius: 28, borderTopRightRadius: 28, boxShadow: "0 -12px 30px rgba(0,0,0,0.35)", borderTop: "1px solid var(--border)", padding: "18px 18px calc(var(--sab) + 18px)", display: "flex", flexDirection: "column", gap: 14, pointerEvents: "auto" }}>
+      <div style={{ background: "var(--bg)", borderTopLeftRadius: 20, borderTopRightRadius: 20, boxShadow: "0 -12px 30px rgba(18,12,6,0.4)", borderTop: "1px solid var(--border)", padding: "18px 18px calc(var(--sab) + 18px)", display: "flex", flexDirection: "column", gap: 14, pointerEvents: "auto" }}>
 
         {/* ---- text chat -> voice reply + lip-sync + talk animation ---- */}
         <div className="col" style={{ gap: 8 }}>
@@ -104,8 +106,8 @@ export default function Animations() {
               placeholder={phase === "idle" ? "Type a message…" : `${phase}…`}
               style={{ flex: 1, height: 44, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", borderRadius: 999, padding: "0 16px", fontSize: 14, outline: "none" }} />
             <button onClick={() => { if (chatText.trim()) { send(chatText); setChatText(""); } }} disabled={phase !== "idle"}
-              style={{ height: 44, padding: "0 18px", borderRadius: 999, border: 0, background: "var(--grad)", color: "#fff", fontWeight: 700, cursor: phase === "idle" ? "pointer" : "default", opacity: phase === "idle" ? 1 : 0.6 }}>
-              Send
+              style={{ height: 44, padding: "0 18px", borderRadius: 999, border: 0, background: "var(--ember)", color: "var(--on-ember)", fontWeight: 700, cursor: phase === "idle" ? "pointer" : "default", opacity: phase === "idle" ? 1 : 0.6 }}>
+              {t("Send")}
             </button>
           </div>
           {phase !== "idle" && <div className="faint" style={{ fontSize: 12 }}>{phase}…</div>}
@@ -116,16 +118,16 @@ export default function Animations() {
           <div style={{ fontSize: 15, fontWeight: 700 }}>Built animations</div>
           <div className="row" style={{ gap: 12 }}>
             <label className="row" style={{ gap: 6, fontSize: 13 }}>
-              <input type="checkbox" checked={clipLoop} onChange={(e) => setClipLoop(e.target.checked)} style={{ accentColor: "var(--a2)" }} />
-              <span className="muted">Loop</span>
+              <input type="checkbox" checked={clipLoop} onChange={(e) => setClipLoop(e.target.checked)} style={{ accentColor: "var(--ember)" }} />
+              <span className="muted">{t("Loop")}</span>
             </label>
             <button className="muted" onClick={stopClip} disabled={!clip}
               style={{ fontSize: 13, background: "none", border: "none", cursor: clip ? "pointer" : "default", color: clip ? "var(--text)" : "var(--faint)" }}>
-              Stop
+              {t("Stop")}
             </button>
             <button onClick={() => setCollapsed(true)}
-              style={{ fontSize: 13, fontWeight: 700, padding: "6px 14px", borderRadius: 999, border: 0, background: "var(--grad)", color: "#fff", cursor: "pointer" }}>
-              Done
+              style={{ fontSize: 13, fontWeight: 700, padding: "6px 14px", borderRadius: 999, border: 0, background: "var(--ember)", color: "var(--on-ember)", cursor: "pointer" }}>
+              {t("Done")}
             </button>
           </div>
         </div>
@@ -144,7 +146,7 @@ export default function Animations() {
                   return (
                     <motion.button key={a.id} whileTap={{ scale: 0.96 }} onClick={() => selectClip(a)} title={a.description}
                       style={{ padding: "7px 11px", borderRadius: 12, border: "1px solid var(--border)", cursor: "pointer", fontSize: 13, fontWeight: 600,
-                        background: on ? "var(--grad)" : "var(--surface-2)", color: on ? "#fff" : "var(--text)" }}>
+                        background: on ? "var(--ember)" : "var(--surface-2)", color: on ? "var(--on-ember)" : "var(--text)" }}>
                       {a.id}
                     </motion.button>
                   );
@@ -164,7 +166,7 @@ export default function Animations() {
           </div>
           <input type="range" min={0} max={100} value={jaw}
             onChange={(e) => setManual(Number(e.target.value))}
-            style={{ width: "100%", accentColor: "var(--a2)" }} />
+            style={{ width: "100%", accentColor: "var(--ember)" }} />
         </div>
       </div>
       )}
@@ -176,7 +178,7 @@ function Toggle({ label, icon, on, onClick }: { label: string; icon: string; on:
   return (
     <motion.button whileTap={{ scale: 0.97 }} onClick={onClick}
       style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "13px 16px", borderRadius: 16, border: "1px solid var(--border)", cursor: "pointer",
-        background: on ? "var(--grad)" : "var(--surface-2)", color: on ? "#fff" : "var(--text)" }}>
+        background: on ? "var(--ember)" : "var(--surface-2)", color: on ? "var(--on-ember)" : "var(--text)" }}>
       <Icon name={icon} size={20} />
       <span style={{ flex: 1, textAlign: "left", fontSize: 15, fontWeight: 600 }}>{label}</span>
       <span style={{ fontSize: 13, opacity: 0.85 }}>{on ? "ON" : "OFF"}</span>
