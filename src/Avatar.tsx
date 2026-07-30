@@ -1,7 +1,7 @@
 import { Suspense, useRef, useEffect, useMemo, Component, ReactNode, PointerEvent, MouseEvent } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { useGLTF, ContactShadows, OrbitControls, Html } from "@react-three/drei";
-import { Group, Vector3, Quaternion, Matrix4, Skeleton,
+import { Group, Vector3, Quaternion, Matrix4, Skeleton, Euler,
   AnimationMixer, LoopRepeat, LoopOnce, Color } from "three";
 import type { Mesh, Object3D, Bone, SkinnedMesh, MeshStandardMaterial } from "three";
 import { clone as skeletonClone } from "three/examples/jsm/utils/SkeletonUtils.js";
@@ -31,6 +31,13 @@ const WIDE_PER = 0.6;                                   // V_Wide cap (ee/s)
 const ROUND_PER = 0.7;                                  // V_Tight_O cap (oo/o)
 const _JAW_AXIS = new Vector3(0, 0, 1);                 // JawRoot local +z opens (verified in export)
 const _jawDelta = new Quaternion();
+
+// Female-base arm clearance in degrees (mirrored onto the right side);
+// tuned visually — dev override via window.__armFix.
+const ARM_CLEAR = { x: 0, y: 0, z: 6 };
+const DEG = Math.PI / 180;
+const _armDelta = new Quaternion();
+const _armEuler = new Euler();
 
 // Attach a wardrobe item to the avatar — ported from the web WardrobeManager.
 //  - bone: rigid item parented to a bone (hair, glasses, hats), baking the
@@ -121,6 +128,9 @@ function Model({ file, params, equipped, clip, loop, lib, look, onReady }:
   const onReadyRef = useRef(onReady); onReadyRef.current = onReady;
   useEffect(() => { onReadyRef.current?.(); }, [scene]);
 
+  // dev-only: expose the scene for console pose experiments
+  if (import.meta.env.DEV) (window as unknown as { __avatar: Object3D }).__avatar = scene;
+
   // Measured photo colors (skin/brows/iris) — applied to the template
   // materials; re-applied when the base swaps, restored when look clears.
   useEffect(() => { applyLook(scene, look); }, [scene, look]);
@@ -138,6 +148,16 @@ function Model({ file, params, equipped, clip, loop, lib, look, onReady }:
     const b = scene.getObjectByName("CC_Base_JawRoot") as Bone | undefined;
     return b ? { bone: b, rest: b.quaternion.clone() } : null;
   }, [scene]);
+  // Idle/gesture clips were authored on the meta MALE rig; on the female base
+  // the hanging hands sink into the wider hips/thighs. Nudge the upper arms
+  // outward AFTER the mixer each frame (post-multiply in bone-local space so
+  // it rides on top of whatever the clip does). Male base: no offset needed.
+  const arms = useMemo(() => {
+    if (!/female/.test(file)) return null;
+    const L = scene.getObjectByName("CC_Base_L_Upperarm") as Bone | undefined;
+    const R = scene.getObjectByName("CC_Base_R_Upperarm") as Bone | undefined;
+    return L && R ? { L, R } : null;
+  }, [scene, file]);
   // Lip-sync morph channels, each fanned out across EVERY mesh that carries the
   // key (body + teeth + tongue), not just the first mesh:
   //   jawMorph Jaw_Open  — chin/lip follow of the jaw bone (≈ deg/15)
@@ -205,6 +225,16 @@ function Model({ file, params, equipped, clip, loop, lib, look, onReady }:
 
   useFrame(({ clock }, dt) => {
     mixerRef.current?.update(dt);   // 1) advance any playing clip FIRST
+    // 1b) female arm clearance (see `arms` above) — post-multiplied so the
+    // clip's own arm motion is preserved, just rotated slightly outward.
+    if (arms) {
+      // dev builds: tune live via window.__armFix; prod compiles to the constant
+      const t = import.meta.env.DEV
+        ? (window as unknown as { __armFix?: { x: number; y: number; z: number } }).__armFix ?? ARM_CLEAR
+        : ARM_CLEAR;
+      arms.L.quaternion.multiply(_armDelta.setFromEuler(_armEuler.set(t.x * DEG, t.y * DEG, t.z * DEG)));
+      arms.R.quaternion.multiply(_armDelta.setFromEuler(_armEuler.set(t.x * DEG, -t.y * DEG, -t.z * DEG)));
+    }
     const t = clock.elapsedTime;
     if (g.current) {
       if (clip) {
