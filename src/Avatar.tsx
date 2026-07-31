@@ -1,6 +1,7 @@
-import { Suspense, useRef, useEffect, useMemo, Component, ReactNode, PointerEvent, MouseEvent } from "react";
+import { Suspense, useRef, useState, useEffect, useMemo, Component, ReactNode, PointerEvent, MouseEvent } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { useGLTF, ContactShadows, OrbitControls, Html } from "@react-three/drei";
+import { useGLTF, ContactShadows, OrbitControls } from "@react-three/drei";
+import { motion, AnimatePresence } from "framer-motion";
 import { Group, Vector3, Quaternion, Matrix4, Skeleton, Euler,
   AnimationMixer, LoopRepeat, LoopOnce, Color } from "three";
 import type { Mesh, Object3D, Bone, SkinnedMesh, MeshStandardMaterial } from "three";
@@ -396,7 +397,14 @@ export function PersistentAvatar() {
   // itself is visible, so it never competes with the avatar GLB for bandwidth.
   const ensureClipsRef = useRef(ensureClips); ensureClipsRef.current = ensureClips;
   const clipsKicked = useRef(false);
+  // Loading overlay: Suspense alone leaves a black gap (drei Html fallback +
+  // the first-frame shader-compile jank happen outside it) — so a plain DOM
+  // HoloScan covers the canvas from mount (and again on base swaps) until the
+  // model's first rendered frame, then fades out.
+  const [ready, setReady] = useState(false);
+  useEffect(() => { setReady(false); }, [file]);
   const onModelReady = () => {
+    setReady(true);
     if (clipsKicked.current) return;
     clipsKicked.current = true;
     playClipRef.current(BASE_IDLE_CLIP);
@@ -437,7 +445,7 @@ export function PersistentAvatar() {
           {/* warm ember rim + soft candlelight back fill — matches the UI world */}
           <directionalLight position={[-4, 3, -2]} intensity={1.0} color="#e8813c" />
           <directionalLight position={[0, 3, -5]} intensity={1.2} color="#ffd9b0" />
-          <Suspense fallback={<Html center><HoloScan size={120} label={t("Waking your avatar…")} /></Html>}>
+          <Suspense fallback={null}>
             <Model file={file} params={params} equipped={list} clip={clip} loop={clipLoop} lib={clipLib} look={look} onReady={onModelReady} />
             {quality !== "low" &&
               <ContactShadows position={[0, 0, 0]} opacity={0.45} scale={7} blur={2.6} far={3} resolution={256} frames={1} />}
@@ -449,6 +457,15 @@ export function PersistentAvatar() {
             rotateSpeed={0.5} enableDamping dampingFactor={0.08}
           />
         </Canvas>
+        <AnimatePresence>
+          {!ready && (
+            <motion.div key="load" exit={{ opacity: 0 }}
+              transition={{ duration: 0.45, ease: [0.23, 1, 0.32, 1] }}
+              style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", pointerEvents: "none", zIndex: 1 }}>
+              <HoloScan size={140} label={t("Waking your avatar…")} />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </Boundary>
     </div>
   );
