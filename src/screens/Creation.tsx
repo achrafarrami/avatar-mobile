@@ -6,7 +6,6 @@ import { useAvatar, voiceForGender, toEquip } from "../avatarStore";
 import { analyzePhoto, morphInfluences, fetchCatalog, AVATARS } from "../api";
 import { planEquips, lookFromAppearance } from "../appearance";
 import { useT, t as tt } from "../i18n";
-import { HoloScan } from "../HoloScan";
 
 const STAGES = ["Analyzing face", "Extracting features", "Building your head",
   "Matching identity", "Preparing voice", "Almost ready"];
@@ -86,7 +85,7 @@ export default function Creation() {
         ) : (
           <motion.div key="gen" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
             style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 26, textAlign: "center" }}>
-            <HoloScan size={150} progress={(stage + 1) / STAGES.length} />
+            <div className="ember-orb" style={{ width: 26, height: 26 }} />
             <div>
               <div className="h2" style={{ marginBottom: 6 }}>{t(STAGES[stage])}…</div>
               <div className="dots" style={{ marginTop: 12 }}>

@@ -19,7 +19,7 @@ import { buildIdleClip } from "./idle";
 import { applyLook, Look } from "./appearance";
 import { useNav, SHEET_SCREENS } from "./nav";
 import { t } from "./i18n";
-import { HoloScan } from "./HoloScan";
+import { SilhouetteTrace } from "./SilhouetteTrace";
 
 type Params = Record<string, number> | null;
 
@@ -462,7 +462,7 @@ export function PersistentAvatar() {
             <motion.div key="load" exit={{ opacity: 0 }}
               transition={{ duration: 0.45, ease: [0.23, 1, 0.32, 1] }}
               style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", pointerEvents: "none", zIndex: 1 }}>
-              <HoloScan size={140} label={t("Waking your avatar…")} />
+              <SilhouetteTrace size={140} label={t("Waking your avatar…")} />
             </motion.div>
           )}
         </AnimatePresence>
