@@ -18,6 +18,7 @@ import { buildIdleClip } from "./idle";
 import { applyLook, Look } from "./appearance";
 import { useNav, SHEET_SCREENS } from "./nav";
 import { t } from "./i18n";
+import { HoloScan } from "./HoloScan";
 
 type Params = Record<string, number> | null;
 
@@ -436,7 +437,7 @@ export function PersistentAvatar() {
           {/* warm ember rim + soft candlelight back fill — matches the UI world */}
           <directionalLight position={[-4, 3, -2]} intensity={1.0} color="#e8813c" />
           <directionalLight position={[0, 3, -5]} intensity={1.2} color="#ffd9b0" />
-          <Suspense fallback={<Html center><Orb label={t("Waking your avatar…")} /></Html>}>
+          <Suspense fallback={<Html center><HoloScan size={120} label={t("Waking your avatar…")} /></Html>}>
             <Model file={file} params={params} equipped={list} clip={clip} loop={clipLoop} lib={clipLib} look={look} onReady={onModelReady} />
             {quality !== "low" &&
               <ContactShadows position={[0, 0, 0]} opacity={0.45} scale={7} blur={2.6} far={3} resolution={256} frames={1} />}
