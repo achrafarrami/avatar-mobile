@@ -202,42 +202,73 @@ function Model({ file, params, equipped, clip, loop, lib, look, onReady }:
   const getIdleClip = () => {
     if (idleCache.current?.key !== file)
       idleCache.current = { key: file, clip: buildIdleClip(scene, /female/.test(file)) };
+    if (import.meta.env.DEV)
+      (window as unknown as { __idleClip: unknown }).__idleClip = idleCache.current.clip;
     return idleCache.current.clip;
   };
 
+  // ONE mixer for the scene's lifetime. The generated idle action NEVER stops —
+  // library clips (fidgets/talk/gestures) crossfade in over it and back out, so
+  // every transition is smooth and the idle keeps its phase (no restart pop).
+  const idleActionRef = useRef<ReturnType<AnimationMixer["clipAction"]> | null>(null);
+  const overlayRef = useRef<ReturnType<AnimationMixer["clipAction"]> | null>(null);
+  const retargetCache = useRef(new Map<string, ReturnType<typeof buildIdleClip>>());
   useEffect(() => {
-    if (!clip) { mixerRef.current = null; return; }
-    applyParamsRef.current();          // morph baseline for the clip build below
-    let src: ReturnType<typeof buildIdleClip> | undefined;
-    if (clip === BASE_IDLE_CLIP) {
-      src = getIdleClip();             // built against THIS scene — no retarget
-    } else {
-      if (!lib) return;                // library still downloading
+    applyParamsRef.current();          // morph baseline for the idle build
+    const mixer = new AnimationMixer(scene);
+    mixerRef.current = mixer;
+    const idleAction = mixer.clipAction(getIdleClip());
+    idleAction.play();
+    idleActionRef.current = idleAction;
+    mixer.update(0);                   // pose the first frame NOW — no rest flash
+    return () => {
+      mixer.stopAllAction();
+      mixer.uncacheRoot(scene);
+      mixerRef.current = null;
+      idleActionRef.current = null;
+      overlayRef.current = null;
+      retargetCache.current.clear();
+    };
+  }, [scene, file]);
+
+  const FADE = 0.35;                   // s — transition crossfade
+  useEffect(() => {
+    const mixer = mixerRef.current, idleAction = idleActionRef.current;
+    if (!mixer || !idleAction) return;
+    if (!clip || clip === BASE_IDLE_CLIP) {
+      // back to base idle: fade the overlay out, fade the (still-running,
+      // never-reset) idle back in — it resumes its own phase, never frame 0.
+      if (overlayRef.current) {
+        idleAction.enabled = true;
+        idleAction.paused = false;
+        idleAction.fadeIn(FADE);
+        overlayRef.current.fadeOut(FADE);
+        overlayRef.current = null;
+      }
+      return;
+    }
+    if (!lib) return;                  // library still downloading
+    let src = retargetCache.current.get(clip);
+    if (!src) {
       const found = lib.clips.find((c) => c.name === clip);
       if (!found) return;
+      applyParamsRef.current();        // morph baseline for the retarget
       let retargeted = retargetMorphs(found, scene, lib.srcNames);
       if (FACIAL_ONLY_CLIPS.has(clip))
         // facial-only clip: its baked body pose is a non-idle rest (arms up) —
         // hold the generated idle's natural stance underneath the expression.
         retargeted = applyIdleBodyPose(retargeted, getIdleClip());
       src = retargeted;
+      retargetCache.current.set(clip, src);
     }
-    const mixer = new AnimationMixer(scene);
-    mixerRef.current = mixer;
     const action = mixer.clipAction(src);
     action.reset();
     action.setLoop(loop ? LoopRepeat : LoopOnce, Infinity);
     action.clampWhenFinished = true;
     action.play();
-    mixer.update(0);                   // pose the first frame NOW — no rest flash
-    return () => {
-      mixer.stopAllAction();
-      mixer.uncacheRoot(scene);
-      mixerRef.current = null;
-      // no rest restore: the next clip's first mixer.update() poses every bone
-      // (the generated idle keys the full skeleton), and restoring the GLB rest
-      // here is exactly what flashed the arms-up pose between clips.
-    };
+    action.fadeIn(FADE);
+    (overlayRef.current ?? idleAction).fadeOut(FADE);
+    overlayRef.current = action;
   }, [scene, clip, loop, lib, file]);
 
   useFrame(({ clock }, dt) => {
