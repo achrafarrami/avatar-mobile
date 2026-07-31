@@ -29,6 +29,9 @@ export const FACIAL_ONLY_CLIPS = new Set([
   // talking clips (owner:"lipsync") are face/jaw-only too — same treatment the
   // sandbox gives them (idle body underneath, face clip layered on top)
   "talking_happy", "talking_excited", "talk_excited",
+  // head-category clips only pose the head/neck — their baked body tracks are
+  // the same non-idle rest (arms up) that flashed in the idle bug
+  "nod_small", "nod_big", "shake_no", "tilt_left", "tilt_right", "head_micro",
 ]);
 
 // Bones a facial-only clip actually animates (head/neck/face/jaw/eyes/mouth) —

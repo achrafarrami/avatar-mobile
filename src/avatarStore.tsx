@@ -46,6 +46,7 @@ type AvatarState = {
   setColor: (slot: string, color?: string) => void;
   playClip: (name: string) => void;
   stopClip: () => void;
+  ensureClips: () => void;   // prefetch the clip library in the background
   setClipLoop: (b: boolean) => void;
 };
 
@@ -84,15 +85,21 @@ export function AvatarProvider({ children }: { children: ReactNode }) {
   // Canvas so the render tree never suspends on it. If the caller stops (or asks
   // for another clip) while the library is still loading, don't start the stale
   // one — this is what makes a quick mic tap not spuriously play a clip.
+  // The BASE idle needs no library at all (it's generated in-app, idle.ts).
+  const libPromise = useRef<Promise<LoadedClips> | null>(null);
+  const ensureClips = () => {
+    if (clipLib) return Promise.resolve(clipLib);
+    libPromise.current ??= (async () => {
+      setClipLoading(true);
+      try { const lib = await loadClipLibrary(); setClipLib(lib); return lib; }
+      finally { setClipLoading(false); }
+    })();
+    return libPromise.current;
+  };
   const playClip = async (name: string) => {
     wantClip.current = name;
-    let lib = clipLib;
-    if (!lib) {
-      setClipLoading(true);
-      try { lib = await loadClipLibrary(); setClipLib(lib); }
-      catch { setClipLoading(false); return; }
-      setClipLoading(false);
-    }
+    if (name === BASE_IDLE_CLIP) { setClip(name); return; }   // generated, instant
+    try { await ensureClips(); } catch { return; }
     if (wantClip.current === name) setClip(name);
   };
   // "stop" means back to the baseline idle body clip, not a blank T-pose.
@@ -114,6 +121,7 @@ export function AvatarProvider({ children }: { children: ReactNode }) {
         setEquipped((e) => (e[slot] ? { ...e, [slot]: { ...e[slot]!, color } } : e)),
       playClip,
       stopClip,
+      ensureClips: () => { ensureClips().catch(() => {}); },
       setClipLoop,
     }}>
 

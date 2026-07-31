@@ -14,6 +14,7 @@ import { useSettings } from "./settings";
 useGLTF.preload(avatarUrl(AVATARS.meta_male));
 import { signals } from "./avatarSignals";
 import { retargetMorphs, LoadedClips, FACIAL_ONLY_CLIPS, applyIdleBodyPose, BASE_IDLE_CLIP } from "./clips";
+import { buildIdleClip } from "./idle";
 import { applyLook, Look } from "./appearance";
 import { useNav, SHEET_SCREENS } from "./nav";
 import { t } from "./i18n";
@@ -181,59 +182,85 @@ function Model({ file, params, equipped, clip, loop, lib, look, onReady }:
   // wins the mouth even while a talking clip animates the body/face.
   const mixerRef = useRef<AnimationMixer | null>(null);
   const mouthSmooth = useRef({ open: 0, wide: 0, round: 0 }); // smoothed lip-sync channels (absolute)
-  useEffect(() => {
-    if (!clip || !lib) { mixerRef.current = null; return; }
-    const src = lib.clips.find((c) => c.name === clip);
-    if (!src) return;
-    // Snapshot bones' authored rest so we restore exactly on stop (skeleton.pose()
-    // uses the bind pose, which for this rig collapses the avatar to the floor).
-    const rest: [Bone, Vector3, Quaternion, Vector3][] = [];
-    scene.traverse((o) => {
-      const b = o as Bone;
-      if (b.isBone) rest.push([b, b.position.clone(), b.quaternion.clone(), b.scale.clone()]);
-    });
-    const mixer = new AnimationMixer(scene);
-    mixerRef.current = mixer;
-    let retargeted = retargetMorphs(src, scene, lib.srcNames);
-    if (FACIAL_ONLY_CLIPS.has(clip)) {
-      // facial-only clip: its own body bones are a baked non-idle rest (T-ish) —
-      // hold the idle clip's natural arm/hand/leg pose underneath the expression.
-      const idleSrc = lib.clips.find((c) => c.name === BASE_IDLE_CLIP);
-      if (idleSrc) retargeted = applyIdleBodyPose(retargeted, idleSrc);
-    }
-    const action = mixer.clipAction(retargeted);
-    action.reset();
-    action.setLoop(loop ? LoopRepeat : LoopOnce, Infinity);
-    action.clampWhenFinished = true;
-    action.play();
-    return () => {
-      mixer.stopAllAction();
-      mixer.uncacheRoot(scene);
-      mixerRef.current = null;
-      for (const [b, p, q, s] of rest) { b.position.copy(p); b.quaternion.copy(q); b.scale.copy(s); }
-    };
-  }, [scene, clip, loop, lib]);
 
-  useEffect(() => {
-    if (clip) return; // a clip is playing: the mixer owns the morphs
+  // Identity morphs (photo params) written straight onto the meshes. Must run
+  // BEFORE a clip is built/retargeted: both paths copy the current influences
+  // as their morph baseline, which is how identity survives under animation.
+  const applyParamsNow = () => {
     for (const m of meshes) {
       const dict = m.morphTargetDictionary!, infl = m.morphTargetInfluences!;
       for (const [k, idx] of Object.entries(dict)) if (params?.[k] === undefined) infl[idx] = 0;
       if (params) for (const [k, v] of Object.entries(params)) if (dict[k] !== undefined) infl[dict[k]] = v;
     }
-  }, [meshes, params, clip]);
+  };
+  const applyParamsRef = useRef(applyParamsNow); applyParamsRef.current = applyParamsNow;
+  useEffect(() => { applyParamsRef.current(); }, [meshes, params]);
+
+  // The generated premium idle (idle.ts), built once per avatar base — needs
+  // no clip-library download, so the avatar is alive from the first frame.
+  const idleCache = useRef<{ key: string; clip: ReturnType<typeof buildIdleClip> } | null>(null);
+  const getIdleClip = () => {
+    if (idleCache.current?.key !== file)
+      idleCache.current = { key: file, clip: buildIdleClip(scene, /female/.test(file)) };
+    return idleCache.current.clip;
+  };
+
+  useEffect(() => {
+    if (!clip) { mixerRef.current = null; return; }
+    applyParamsRef.current();          // morph baseline for the clip build below
+    let src: ReturnType<typeof buildIdleClip> | undefined;
+    if (clip === BASE_IDLE_CLIP) {
+      src = getIdleClip();             // built against THIS scene — no retarget
+    } else {
+      if (!lib) return;                // library still downloading
+      const found = lib.clips.find((c) => c.name === clip);
+      if (!found) return;
+      let retargeted = retargetMorphs(found, scene, lib.srcNames);
+      if (FACIAL_ONLY_CLIPS.has(clip))
+        // facial-only clip: its baked body pose is a non-idle rest (arms up) —
+        // hold the generated idle's natural stance underneath the expression.
+        retargeted = applyIdleBodyPose(retargeted, getIdleClip());
+      src = retargeted;
+    }
+    const mixer = new AnimationMixer(scene);
+    mixerRef.current = mixer;
+    const action = mixer.clipAction(src);
+    action.reset();
+    action.setLoop(loop ? LoopRepeat : LoopOnce, Infinity);
+    action.clampWhenFinished = true;
+    action.play();
+    mixer.update(0);                   // pose the first frame NOW — no rest flash
+    return () => {
+      mixer.stopAllAction();
+      mixer.uncacheRoot(scene);
+      mixerRef.current = null;
+      // no rest restore: the next clip's first mixer.update() poses every bone
+      // (the generated idle keys the full skeleton), and restoring the GLB rest
+      // here is exactly what flashed the arms-up pose between clips.
+    };
+  }, [scene, clip, loop, lib, file]);
 
   useFrame(({ clock }, dt) => {
     mixerRef.current?.update(dt);   // 1) advance any playing clip FIRST
-    // 1b) female arm clearance (see `arms` above) — post-multiplied so the
-    // clip's own arm motion is preserved, just rotated slightly outward.
-    if (arms) {
+    // 1b) female arm clearance — only for LIBRARY body clips (gestures/loco);
+    // the generated idle (and the facial-clip underlay built from it) already
+    // bakes the clearance in, so adding it again would over-rotate the arms.
+    if (arms && clip && clip !== BASE_IDLE_CLIP && !FACIAL_ONLY_CLIPS.has(clip)) {
       // dev builds: tune live via window.__armFix; prod compiles to the constant
       const t = import.meta.env.DEV
         ? (window as unknown as { __armFix?: { x: number; y: number; z: number } }).__armFix ?? ARM_CLEAR
         : ARM_CLEAR;
       arms.L.quaternion.multiply(_armDelta.setFromEuler(_armEuler.set(t.x * DEG, t.y * DEG, t.z * DEG)));
       arms.R.quaternion.multiply(_armDelta.setFromEuler(_armEuler.set(t.x * DEG, -t.y * DEG, -t.z * DEG)));
+    }
+    // dev-only bone pose lab: window.__pose = { "CC_Base_L_Forearm": [x°,y°,z°] }
+    // applied additively post-mixer — for calibrating axes from the console.
+    if (import.meta.env.DEV) {
+      const posed = (window as unknown as { __pose?: Record<string, [number, number, number]> }).__pose;
+      if (posed) for (const [name, e] of Object.entries(posed)) {
+        const b = scene.getObjectByName(name) as Bone | undefined;
+        if (b) b.quaternion.multiply(_armDelta.setFromEuler(_armEuler.set(e[0] * DEG, e[1] * DEG, e[2] * DEG)));
+      }
     }
     const t = clock.elapsedTime;
     if (g.current) {
@@ -310,7 +337,7 @@ const IDLE_FIDGET_MIN_MS = 6000;
 const IDLE_FIDGET_MAX_MS = 14000;
 
 export function PersistentAvatar() {
-  const { file, params, equipped, clip, clipLoop, clipLib, look, playClip, stopClip } = useAvatar();
+  const { file, params, equipped, clip, clipLoop, clipLib, look, playClip, stopClip, ensureClips } = useAvatar();
   const list = useMemo(() => Object.values(equipped), [equipped]);
   const { screen, back } = useNav();
 
@@ -332,13 +359,16 @@ export function PersistentAvatar() {
   const clipLibRef = useRef(clipLib); clipLibRef.current = clipLib;
   const playClipRef = useRef(playClip); playClipRef.current = playClip;
   const stopClipRef = useRef(stopClip); stopClipRef.current = stopClip;
-  // Clip library loads only once the avatar itself is visible (Model onReady) —
-  // starting the 28MB download alongside the avatar GLB delays first paint.
+  // Base idle is generated in-app and starts instantly; the 28MB clip library
+  // (fidgets/talk/gestures) prefetches in the background only once the avatar
+  // itself is visible, so it never competes with the avatar GLB for bandwidth.
+  const ensureClipsRef = useRef(ensureClips); ensureClipsRef.current = ensureClips;
   const clipsKicked = useRef(false);
   const onModelReady = () => {
     if (clipsKicked.current) return;
     clipsKicked.current = true;
     playClipRef.current(BASE_IDLE_CLIP);
+    ensureClipsRef.current();
   };
   useEffect(() => {
     let stopTimer: ReturnType<typeof setTimeout> | undefined;
